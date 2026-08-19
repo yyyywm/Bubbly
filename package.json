@@ -1,0 +1,36 @@
+{
+  "name": "love-bubble",
+  "version": "1.0.0",
+  "description": "恋爱气泡 - 双人桌面桌宠应用",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3"
+  },
+  "author": "",
+  "license": "MIT",
+  "keywords": [],
+  "build": {
+    "appId": "com.lovebubble.app",
+    "productName": "恋爱气泡",
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "files": [
+      "main.js",
+      "renderer.js",
+      "index.html",
+      "package.json"
+    ]
+  }
+}
