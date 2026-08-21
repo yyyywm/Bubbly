@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  恋爱气泡 - 渲染进程（页面逻辑）
+ *  Bubbly - 渲染进程（页面逻辑）
  * ============================================================
  */
 
@@ -43,7 +43,7 @@ const userId = 'pet_' + Math.random().toString(36).substr(2, 8);
 // ============================================================
 function loadSettings() {
   try {
-    const saved = localStorage.getItem('lovebubble_settings');
+    const saved = localStorage.getItem('bubbly_settings');
     if (saved) {
       const settings = JSON.parse(saved);
       if (settings.serverUrl) inpServer.value = settings.serverUrl;
@@ -63,7 +63,7 @@ function loadSettings() {
 
 function saveSettings() {
   try {
-    localStorage.setItem('lovebubble_settings', JSON.stringify({
+    localStorage.setItem('bubbly_settings', JSON.stringify({
       serverUrl: inpServer.value,
       room: inpRoom.value,
       nickname: inpNickname.value,

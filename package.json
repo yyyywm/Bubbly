@@ -1,12 +1,23 @@
 {
-  "name": "love-bubble",
+  "name": "bubbly",
   "version": "1.0.0",
-  "description": "恋爱气泡 - 双人桌面桌宠应用",
+  "description": "Bubbly - A desktop pet app for couples to chat through love bubbles",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "server": "node server.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ywmywmywm/bubbly.git"
+  },
+  "keywords": [
+    "desktop-pet",
+    "websocket",
+    "chat",
+    "electron",
+    "couple"
+  ],
   "dependencies": {
     "ws": "^8.21.3"
   },
@@ -15,10 +26,9 @@
   },
   "author": "",
   "license": "MIT",
-  "keywords": [],
   "build": {
-    "appId": "com.lovebubble.app",
-    "productName": "恋爱气泡",
+    "appId": "com.bubbly.app",
+    "productName": "Bubbly",
     "mac": {
       "category": "public.app-category.entertainment",
       "target": "dmg"

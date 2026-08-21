@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  恋爱气泡 - Electron 主进程
+ *  Bubbly - Electron 主进程
  * ============================================================
  *
  *  核心功能:
@@ -39,13 +39,13 @@ function createTrayIcon() {
   const img = nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svgData).toString('base64'));
   tray = new Tray(img);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '💕 恋爱气泡', enabled: false },
+    { label: '💕 Bubbly', enabled: false },
     { type: 'separator' },
     { label: '🔄 重启应用', click: () => { app.relaunch(); app.exit(0); } },
     { type: 'separator' },
     { label: '❌ 退出', click: () => app.quit() }
   ]));
-  tray.setToolTip('💕 恋爱气泡');
+  tray.setToolTip('💕 Bubbly');
   tray.on('click', () => tray.popUpContextMenu());
 }
 

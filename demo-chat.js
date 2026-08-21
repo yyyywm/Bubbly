@@ -1,5 +1,5 @@
 /**
- * 恋爱气泡 - 双向通信实时演示
+ * Bubbly - 双向通信实时演示
  * 模拟两个客户端连接同一房间，互相发送消息
  */
 
@@ -69,7 +69,7 @@ const B = makeClient('🐱 小猫(B)', colors.blue);
 async function main() {
   console.log('');
   console.log('═'.repeat(52));
-  console.log('  ❤  恋爱气泡 - 双向通信实时演示');
+  console.log('  💕  Bubbly - 双向通信实时演示');
   console.log('═'.repeat(52));
   console.log('');
 

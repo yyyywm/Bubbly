@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  恋爱气泡 - WebSocket 信令服务器
+ *  Bubbly - WebSocket 信令服务器
  * ============================================================
  *  启动方式: node server.js
  *  默认监听端口: 8080
@@ -39,7 +39,7 @@ const rooms = new Map();
 // 创建HTTP服务器（仅用于承载WebSocket，不提供HTTP页面）
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('恋爱气泡服务器运行中 ✓');
+  res.end('Bubbly 服务器运行中 ✓');
 });
 
 // 创建WebSocket服务器
@@ -281,7 +281,7 @@ function leaveRoom(room, userId, ws) {
 // ============================================================
 httpServer.listen(PORT, () => {
   console.log('='.repeat(50));
-  console.log('  ❤  恋爱气泡 服务器已启动  ❤');
+  console.log('  💕  Bubbly 服务器已启动  💕');
   console.log('='.repeat(50));
   console.log(`  端口: ${PORT}`);
   console.log(`  局域网连接地址: ws://<你的局域网IP>:${PORT}`);
