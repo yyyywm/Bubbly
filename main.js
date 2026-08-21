@@ -63,7 +63,7 @@ function createWindow() {
     resizable: false,
     titleBarStyle: 'hidden',
     show: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -81,7 +81,9 @@ function createWindow() {
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
-  app.dock.hide();
+  if (process.platform === 'darwin') {
+    app.dock.hide();
+  }
 }
 
 // 切换到桌宠模式
@@ -132,8 +134,20 @@ ipcMain.on('drag-move', (event, screenX, screenY) => {
 
 ipcMain.on('drag-end', () => { isDragging = false; });
 
-app.whenReady().then(() => { createTrayIcon(); createWindow(); });
-app.on('window-all-closed', () => app.quit());
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => { createTrayIcon(); createWindow(); });
+  app.on('window-all-closed', () => app.quit());
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+}
