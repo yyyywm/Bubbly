@@ -32,6 +32,7 @@ html, body {
 #setup-drag:active { cursor: grabbing; }
 #setup-drag h2 { font-size: 14px; color: #ff6b9d; font-weight: 700; }
 #setup-drag .subtitle { font-size: 9px; color: #ccc; margin-top: 2px; }
+#setup-drag .hint { font-size: 8px; color: #bbb; margin-top: 1px; }
 
 #setup-panel .form-area {
   padding: 8px 0 4px;
@@ -141,18 +142,21 @@ html, body {
 
 #bubble-container {
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  width: 220px; height: 100px;
+  width: 220px; height: 120px;
   display: flex; align-items: flex-start; justify-content: center;
   pointer-events: none;
+  overflow: visible;
 }
 .bubble {
   position: relative; max-width: 220px; min-width: 60px;
+  max-height: 100px;
   padding: 10px 14px; background: white;
   border-radius: 20px; font-size: 13px; color: #333; line-height: 1.4;
   box-shadow: 0 4px 15px rgba(0,0,0,0.12);
   word-wrap: break-word; overflow-wrap: break-word;
   opacity: 0; transform: translateY(30px);
   transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+  display: flex; align-items: center;
 }
 .bubble.show { opacity: 1; transform: translateY(0); }
 .bubble.hide { opacity: 0; transform: translateY(0);
@@ -206,6 +210,7 @@ html, body {
   <div id="setup-drag">
     <h2>💕 Bubbly</h2>
     <p class="subtitle">与对方配对，开始聊天</p>
+    <p class="hint">双击桌宠发送消息 · 双击状态灯返回设置</p>
   </div>
 
   <div class="form-area">
@@ -234,13 +239,13 @@ html, body {
 
   <div class="connect-area">
     <button id="btn-connect">💕 连接</button>
-    <div id="setup-status"></div>
+    <div id="setup-status">双击状态灯返回设置</div>
   </div>
 </div>
 
 <div id="pet-area">
   <div id="bubble-container"></div>
-  <div id="reconnect-hint">断开连接，双击桌宠重连</div>
+  <div id="reconnect-hint">已断开，双击状态灯重连</div>
   <div id="pet-container">
     <div id="pet-body">
       <div class="pet-ear left"></div>
