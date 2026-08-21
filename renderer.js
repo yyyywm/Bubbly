@@ -82,19 +82,20 @@ function saveSettings() {
 function applyScale(scale) {
   petScale = scale;
   const ratio = scale / 100;
+  const petSize = 150 * ratio;
 
   // 桌宠本体缩放
   petBody.style.transform = `scale(${ratio})`;
   petBody.style.transformOrigin = 'center center';
-  petContainer.style.width = '150px';
-  petContainer.style.height = '150px';
+  petContainer.style.width = petSize + 'px';
+  petContainer.style.height = petSize + 'px';
 
-  // 气泡容器
-  const bubbleTop = Math.max(10, 300 - 220 - 30 - Math.round(150 * ratio)) + 10;
-  bubbleContainer.style.top = bubbleTop + 'px';
+  // 气泡容器：紧贴桌宠头顶上方，留出 12px 间距
+  bubbleContainer.style.top = Math.max(10, 300 - 220 - Math.round(petSize) - 12) + 'px';
+  bubbleContainer.style.height = '120px';
 
-  // 状态指示灯
-  const dotTop = 300 - Math.round(150 * ratio) + 5;
+  // 状态指示灯：紧贴气泡容器下方，留出 6px 间距
+  const dotTop = Math.max(10, 300 - 220 - Math.round(petSize) - 12) + 120 + 6;
   statusDot.style.top = dotTop + 'px';
 
   saveSettings();
@@ -348,6 +349,7 @@ function showInput() {
   inputPanel.style.display = 'flex';
   msgInput.value = '';
   msgInput.focus();
+  petArea.style.cursor = 'default';
   updateRegions();
 }
 
@@ -356,6 +358,7 @@ function hideInput() {
   inputVisible = false;
   inputPanel.style.display = 'none';
   msgInput.blur();
+  petArea.style.cursor = 'none';
   updateRegions();
 }
 
@@ -399,6 +402,7 @@ let isDragging = false;
 let dragButton = null;
 
 function startDrag(e, button) {
+  if (isDragging) return;
   e.preventDefault();
   isDragging = true;
   dragButton = button;
@@ -454,6 +458,13 @@ document.addEventListener('contextmenu', (e) => e.preventDefault());
 petContainer.addEventListener('dblclick', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  if (!isConnected) {
+    // 断开状态下双击桌宠立即重连
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    connect();
+    return;
+  }
   showInput();
 });
 
@@ -490,6 +501,32 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
 // 连接按钮
 // ============================================================
 btnConnect.addEventListener('click', connect);
+
+// 双击状态灯：已连接→返回设置，已断开→立即重连
+statusDot.addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (isConnected) {
+    ws.close();
+    isConnected = false;
+    reconnectVisible = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    window.electronAPI.disablePenetrating();
+    petArea.style.display = 'none';
+    setupPanel.style.display = 'flex';
+    setupStatus.textContent = '已断开连接';
+    setupStatus.style.color = '#f44336';
+    btnConnect.disabled = false;
+    hideInput();
+    messageQueue.length = 0;
+    isShowing = false;
+    bubbleContainer.innerHTML = '';
+  } else {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    connect();
+  }
+});
 
 // ============================================================
 // 初始化
