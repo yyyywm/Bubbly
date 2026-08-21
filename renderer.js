@@ -399,9 +399,9 @@ function scheduleReconnect() {
 // ============================================================
 
 let isDragging = false;
-let dragButton = null;
 
 function endDrag() {
+  if (!isDragging) return;
   isDragging = false;
   document.body.style.cursor = 'default';
   petContainer.style.cursor = 'default';
@@ -415,33 +415,29 @@ function endDrag() {
 }
 
 function startDrag(e, button) {
-  // 如果已处于拖拽状态，先强制结束（鼠标移出窗口松开后 isDragging 会残留）
-  if (isDragging) {
-    endDrag();
-  }
-
   e.preventDefault();
-  isDragging = true;
-  dragButton = button;
 
-  if (button === 2) {
-    petContainer.style.cursor = 'grabbing';
-  } else {
-    document.body.style.cursor = 'grabbing';
-  }
+  // 如果上次拖拽残留状态，先清理
+  if (isDragging) endDrag();
+
+  isDragging = true;
+  document.body.style.cursor = 'grabbing';
+  petContainer.style.cursor = 'grabbing';
 
   window.electronAPI.disablePenetrating();
   window.electronAPI.dragStart(e.screenX, e.screenY);
 }
 
-// 设置面板：左键拖拽标题栏区域
+// 设置面板：左键拖拽标题栏
 setupDrag.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
   startDrag(e, 0);
 });
 
 // 桌宠：右键拖拽
 petContainer.addEventListener('mousedown', (e) => {
-  if (e.button === 2) startDrag(e, 2);
+  if (e.button !== 2) return;
+  startDrag(e, 2);
 });
 
 document.addEventListener('mousemove', (e) => {
@@ -449,10 +445,16 @@ document.addEventListener('mousemove', (e) => {
   window.electronAPI.dragMove(e.screenX, e.screenY);
 });
 
-document.addEventListener('mouseup', (e) => {
-  if (!isDragging) return;
-  if (e.button !== dragButton) return;
+// mouseup 始终结束拖拽，不做 button 校验
+document.addEventListener('mouseup', () => {
   endDrag();
+});
+
+// 鼠标移出窗口也结束拖拽（无边框窗口 boundary 检测）
+window.addEventListener('mouseleave', (e) => {
+  if (isDragging && e.relatedTarget === null) {
+    endDrag();
+  }
 });
 
 document.addEventListener('contextmenu', (e) => e.preventDefault());
