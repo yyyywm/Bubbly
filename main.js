@@ -77,10 +77,8 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   mainWindow.webContents.on('did-finish-load', () => {
-    // 页面加载完成后才设置置顶，避免透明窗口初始化阶段的鼠标事件路由问题
-    mainWindow.setAlwaysOnTop(true, 'normal');
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
-    mainWindow.focus();
+    mainWindow.setAlwaysOnTop(true, 'normal');
     console.log('[MAIN] Page loaded');
   });
 
@@ -137,7 +135,12 @@ ipcMain.on('drag-move', (event, screenX, screenY) => {
   mainWindow.setPosition(Math.round(screenX - dragOffset.x), Math.round(screenY - dragOffset.y));
 });
 
-ipcMain.on('drag-end', () => { isDragging = false; });
+ipcMain.on('drag-end', () => {
+  isDragging = false;
+  if (mainWindow) {
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
+  }
+});
 
 // --no-single-instance 允许多开（开发调试用）；打包发布时默认启用单实例锁
 const args = process.argv.slice(2);
