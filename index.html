@@ -20,45 +20,48 @@ html, body {
   border: 1px solid #f5e6d8;
   box-shadow: 0 8px 32px rgba(255,152,0,0.15);
   display: flex; flex-direction: column; align-items: stretch;
-  padding: 0 16px 12px;
+  padding: 0 14px 10px;
   z-index: 100;
   overflow: hidden;
 }
 
 #setup-drag {
   display: flex; flex-direction: column; align-items: center;
-  padding: 14px 0 10px; cursor: grab;
+  padding: 8px 0 6px; cursor: grab;
+  flex-shrink: 0;
 }
 #setup-drag:active { cursor: grabbing; }
 #setup-drag h2 {
-  font-size: 15px; color: #ff6b9d; font-weight: 700;
-  letter-spacing: 0.3px;
+  font-size: 14px; color: #ff6b9d; font-weight: 700;
+  line-height: 1.4;
 }
 #setup-drag .subtitle {
-  font-size: 9.5px; color: #aaa; margin-top: 2px;
+  font-size: 9px; color: #aaa; margin-top: 2px;
+  line-height: 1.4;
 }
 #setup-drag .hint {
-  font-size: 8.5px; color: #ccc; margin-top: 2px;
+  font-size: 8px; color: #ccc; margin-top: 1px;
   line-height: 1.4;
 }
 
 #setup-panel .form-area {
-  padding: 8px 0 6px;
-  display: flex; flex-direction: column; gap: 9px;
+  padding: 6px 0 4px;
+  display: flex; flex-direction: column; gap: 6px;
   flex: 1;
+  min-height: 0;
 }
 
 #setup-panel .input-group {
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; flex-direction: column; gap: 2px;
 }
 #setup-panel label {
-  font-size: 9.5px; color: #777; font-weight: 600;
-  letter-spacing: 0.4px;
+  font-size: 9px; color: #777; font-weight: 600;
+  letter-spacing: 0.3px; line-height: 1.2;
 }
 #setup-panel input[type="text"] {
-  width: 100%; height: 26px; padding: 0 10px;
+  width: 100%; height: 24px; padding: 0 8px;
   border: 1.5px solid #f0e0d0; background: #ffffff;
-  border-radius: 8px; font-size: 11px; color: #333;
+  border-radius: 7px; font-size: 11px; color: #333;
   outline: none; cursor: text;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -70,50 +73,49 @@ html, body {
   color: #ccc;
 }
 
-.scale-group { display: flex; gap: 5px; }
+.scale-group { display: flex; gap: 4px; }
 .scale-btn {
   flex: 1; height: 24px;
   border: 1.5px solid #f0e0d0; background: #ffffff;
-  color: #888; border-radius: 7px;
+  color: #888; border-radius: 6px;
   font-size: 10px; font-weight: 600; cursor: pointer;
   transition: all 0.2s ease;
 }
 .scale-btn:hover {
   border-color: #ff6b9d; color: #ff6b9d;
-  background: #fff8f5;
 }
 .scale-btn.active {
   background: linear-gradient(135deg, #ff6b9d, #ff8a65);
   border-color: transparent; color: white;
-  box-shadow: 0 2px 8px rgba(255,107,157,0.3);
+  box-shadow: 0 2px 6px rgba(255,107,157,0.3);
 }
 
 #setup-panel .connect-area {
-  padding: 4px 0 0;
+  padding: 3px 0 0;
+  flex-shrink: 0;
 }
 #setup-panel button#btn-connect {
-  width: 100%; height: 32px;
+  width: 100%; height: 28px;
   background: linear-gradient(135deg, #ff6b9d, #ff8a65);
-  color: white; border: none; border-radius: 10px;
+  color: white; border: none; border-radius: 9px;
   font-size: 12px; font-weight: 700; cursor: pointer;
-  box-shadow: 0 4px 14px rgba(255,107,157,0.35);
+  box-shadow: 0 3px 10px rgba(255,107,157,0.3);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 #setup-panel button#btn-connect:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(255,107,157,0.4);
+  box-shadow: 0 5px 14px rgba(255,107,157,0.35);
 }
 #setup-panel button#btn-connect:active {
   transform: translateY(0);
 }
 #setup-panel button#btn-connect:disabled {
   opacity: 0.5; cursor: not-allowed; transform: none;
-  box-shadow: 0 4px 14px rgba(255,107,157,0.35);
 }
 
 #setup-status {
   font-size: 9px; color: #bbb; text-align: center;
-  min-height: 12px; margin-top: 6px;
+  min-height: 12px; margin-top: 3px;
   transition: color 0.2s ease;
 }
 
