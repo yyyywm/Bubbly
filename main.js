@@ -82,8 +82,10 @@ function createWindow() {
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
 
-  // 窗口初始化完成后设置置顶，避免 macOS 上 alwaysOnTop + transparent 导致鼠标穿透
-  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  // 窗口初始化完成后设置置顶，使用 floating 层级确保鼠标事件正常路由
+  // screen-saver 层级会导致 macOS 上鼠标事件无法投递到透明窗口
+  mainWindow.setAlwaysOnTop(true, 'floating');
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
   mainWindow.focus();
   if (process.platform === 'darwin') {
     app.dock.hide();
@@ -137,20 +139,26 @@ ipcMain.on('drag-move', (event, screenX, screenY) => {
 
 ipcMain.on('drag-end', () => { isDragging = false; });
 
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
+// --no-single-instance 允许多开（开发调试用）；打包发布时默认启用单实例锁
+const args = process.argv.slice(2);
+const noSingleInstance = args.includes('--no-single-instance');
 
-  app.whenReady().then(() => { createTrayIcon(); createWindow(); });
-  app.on('window-all-closed', () => app.quit());
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+if (!noSingleInstance) {
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+  }
 }
+
+app.whenReady().then(() => { createTrayIcon(); createWindow(); });
+app.on('window-all-closed', () => app.quit());
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
