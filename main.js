@@ -60,13 +60,13 @@ function createWindow() {
     y: 300,
     transparent: true,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     focusable: true,
     hasShadow: false,
     resizable: false,
     titleBarStyle: 'hidden',
     show: true,
-    backgroundColor: '#00000000',
+    backgroundColor: '#ffffff',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -75,18 +75,18 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
-  mainWindow.setIgnoreMouseEvents(false, { forward: false });
 
   mainWindow.webContents.on('did-finish-load', () => {
+    // 页面加载完成后才设置置顶，避免透明窗口初始化阶段的鼠标事件路由问题
+    mainWindow.setAlwaysOnTop(true, 'normal');
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
+    mainWindow.focus();
     console.log('[MAIN] Page loaded');
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
 
-  mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  mainWindow.focus();
   if (process.platform === 'darwin') {
     app.dock.hide();
   }
