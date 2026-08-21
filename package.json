@@ -22,9 +22,10 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
-    "electron": "^28.3.3"
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
   },
-  "author": "",
+  "author": "ywmywmywm",
   "license": "MIT",
   "build": {
     "appId": "com.bubbly.app",
