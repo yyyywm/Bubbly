@@ -32,11 +32,13 @@ let isConnected = false;
 let isSending = false;
 let inputVisible = false;
 let reconnectTimer = null;
+const MAX_QUEUE_SIZE = 50;
 const messageQueue = [];
 let isShowing = false;
+let reconnectVisible = false;
 let nickname = '';
 let petScale = 100;
-const userId = 'pet_' + Math.random().toString(36).substr(2, 8);
+const userId = crypto.randomUUID();
 
 // ============================================================
 // 加载保存的设置
@@ -145,7 +147,7 @@ function updateRegions() {
   }
 
   // 重连提示（显示时）
-  if (reconnectHint.style.display !== 'none') {
+  if (reconnectVisible) {
     const connRect = reconnectHint.getBoundingClientRect();
     regions.push({
       x: Math.round(connRect.left),
@@ -220,13 +222,13 @@ function connect() {
 
     ws.onerror = () => {
       console.error('WebSocket 错误');
-      setupStatus.textContent = '⚠️ 连接失败，请检查服务器地址';
-      setupStatus.style.color = '#f44336';
-      btnConnect.disabled = false;
       if (petArea.style.display !== 'none') {
         showReconnectHint();
         updateRegions();
-        scheduleReconnect();
+      } else {
+        setupStatus.textContent = '⚠️ 连接失败，请检查服务器地址';
+        setupStatus.style.color = '#f44336';
+        btnConnect.disabled = false;
       }
     };
   } catch (e) {
@@ -277,6 +279,9 @@ function handleMessage(data) {
 // ============================================================
 
 function enqueueBubble(text) {
+  if (messageQueue.length >= MAX_QUEUE_SIZE) {
+    messageQueue.shift();
+  }
   messageQueue.push(text);
   showNextBubble();
 }
@@ -363,6 +368,8 @@ function updateStatusUI() {
     statusDot.className = 'online';
     reconnectHint.style.display = 'none';
   } else {
+    reconnectVisible = false;
+    reconnectHint.style.display = 'none';
     statusDot.className = 'offline';
   }
   if (petArea.style.display !== 'none') {
@@ -371,6 +378,7 @@ function updateStatusUI() {
 }
 
 function showReconnectHint() {
+  reconnectVisible = true;
   reconnectHint.style.display = 'block';
   statusDot.className = 'offline';
 }
@@ -491,14 +499,3 @@ loadSettings();
 setSetupModePenetration();
 console.log('[RENDERER] Init complete, electronAPI:', !!window.electronAPI);
 
-// 调试：监听设置面板鼠标事件
-setupPanel.addEventListener('mousemove', (e) => {
-  if (!setupPanel._mouseLogTimer) {
-    console.log('[RENDERER] Mouse move on setup-panel');
-    setupPanel._mouseLogTimer = setTimeout(() => { setupPanel._mouseLogTimer = null; }, 2000);
-  }
-});
-
-btnConnect.addEventListener('mousedown', (e) => {
-  console.log('[RENDERER] Mousedown on btn-connect');
-});
