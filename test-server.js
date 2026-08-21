@@ -289,6 +289,25 @@ async function main() {
     a.close();
   }
 
+  // ---------- 测试8: 新成员加入通知 ----------
+  console.log('\n▸ 测试8: 新成员加入通知对方');
+  {
+    const a = makeClient();
+    const b = makeClient();
+    await a.join('notify', 'alice');
+    await sleep(500);
+    await b.join('notify', 'bob');
+    await sleep(500);
+
+    if (a.findMsg('peer-joined', m => m.id === 'bob')) {
+      pass('新成员加入通知送达');
+    } else {
+      fail('新成员加入通知送达', `A 收到: ${JSON.stringify(a.messages)}`);
+    }
+    a.close();
+    b.close();
+  }
+
   // ============================================================
   // 汇总
   // ============================================================
