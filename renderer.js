@@ -401,8 +401,25 @@ function scheduleReconnect() {
 let isDragging = false;
 let dragButton = null;
 
+function endDrag() {
+  isDragging = false;
+  document.body.style.cursor = 'default';
+  petContainer.style.cursor = 'default';
+  window.electronAPI.dragEnd();
+
+  if (petArea.style.display !== 'none') {
+    updateRegions();
+  } else {
+    window.electronAPI.disablePenetrating();
+  }
+}
+
 function startDrag(e, button) {
-  if (isDragging) return;
+  // 如果已处于拖拽状态，先强制结束（鼠标移出窗口松开后 isDragging 会残留）
+  if (isDragging) {
+    endDrag();
+  }
+
   e.preventDefault();
   isDragging = true;
   dragButton = button;
@@ -435,18 +452,19 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseup', (e) => {
   if (!isDragging) return;
   if (e.button !== dragButton) return;
+  endDrag();
+});
 
-  isDragging = false;
-  document.body.style.cursor = 'default';
-  petContainer.style.cursor = 'default';
-  window.electronAPI.dragEnd();
-
-  // 根据当前模式恢复穿透
-  if (petArea.style.display !== 'none') {
-    // 桌宠模式：区域穿透
-    updateRegions();
+document.addEventListener('mousedown', (e) => {
+  if (isDragging && e.button !== dragButton) {
+    endDrag();
   }
-  // 设置面板模式：不穿透（由初始状态保证，无需额外操作）
+});
+
+document.addEventListener('mouseleave', () => {
+  if (isDragging) {
+    endDrag();
+  }
 });
 
 document.addEventListener('contextmenu', (e) => e.preventDefault());
