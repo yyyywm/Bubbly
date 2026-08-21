@@ -43,7 +43,15 @@ const httpServer = http.createServer((req, res) => {
 });
 
 // 创建WebSocket服务器
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({ server: httpServer, maxPayload: 64 * 1024 });
+
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach(client => {
+    if (!client.isAlive) return client.terminate();
+    client.isAlive = false;
+    client.ping();
+  });
+}, 30000);
 
 // ============================================================
 // WebSocket 连接处理
@@ -53,6 +61,8 @@ wss.on('connection', (ws, req) => {
   let userId = null;
 
   console.log(`[连接] 新客户端连接: ${req.socket.remoteAddress}`);
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (rawData) => {
     let msg;
@@ -293,6 +303,7 @@ httpServer.listen(PORT, () => {
 // 优雅关闭
 process.on('SIGINT', () => {
   console.log('\n[服务器] 正在关闭...');
+  clearInterval(heartbeatInterval);
   wss.clients.forEach(client => {
     client.close();
   });
