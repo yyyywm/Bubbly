@@ -24,6 +24,9 @@ const {
 } = require('electron');
 const path = require('path');
 
+// 多实例运行时隔离用户数据目录，避免缓存冲突
+app.setPath('userData', path.join(app.getPath('userData'), `instance-${process.pid}`));
+
 let mainWindow = null;
 let tray = null;
 let isDragging = false;
@@ -57,7 +60,7 @@ function createWindow() {
     y: 300,
     transparent: true,
     frame: false,
-    alwaysOnTop: false,
+    alwaysOnTop: true,
     focusable: true,
     hasShadow: false,
     resizable: false,
@@ -82,9 +85,6 @@ function createWindow() {
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
 
-  // 窗口初始化完成后设置置顶，使用 floating 层级确保鼠标事件正常路由
-  // screen-saver 层级会导致 macOS 上鼠标事件无法投递到透明窗口
-  mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setIgnoreMouseEvents(false, { forward: false });
   mainWindow.focus();
   if (process.platform === 'darwin') {
