@@ -455,18 +455,6 @@ document.addEventListener('mouseup', (e) => {
   endDrag();
 });
 
-document.addEventListener('mousedown', (e) => {
-  if (isDragging && e.button !== dragButton) {
-    endDrag();
-  }
-});
-
-document.addEventListener('mouseleave', () => {
-  if (isDragging) {
-    endDrag();
-  }
-});
-
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ============================================================
