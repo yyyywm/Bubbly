@@ -57,7 +57,7 @@ function createWindow() {
     y: 300,
     transparent: true,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     focusable: true,
     hasShadow: false,
     resizable: false,
@@ -72,15 +72,19 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
-  mainWindow.setIgnoreMouseEvents(false);
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
 
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.setIgnoreMouseEvents(false);
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
     console.log('[MAIN] Page loaded');
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  // 窗口初始化完成后设置置顶，避免 macOS 上 alwaysOnTop + transparent 导致鼠标穿透
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.focus();
   if (process.platform === 'darwin') {
     app.dock.hide();
   }
@@ -90,7 +94,6 @@ function createWindow() {
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
-  mainWindow.setAlwaysOnTop(true, 'normal');
 });
 
 ipcMain.on('enable-penetrating', () => {
@@ -100,13 +103,13 @@ ipcMain.on('enable-penetrating', () => {
 
 ipcMain.on('disable-penetrating', () => {
   if (!mainWindow) return;
-  mainWindow.setIgnoreMouseEvents(false);
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
 });
 
 ipcMain.on('set-non-penetrating-region', (event, regions) => {
   if (!mainWindow) return;
   if (!regions || regions.length === 0) {
-    mainWindow.setIgnoreMouseEvents(false);
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
   } else {
     mainWindow.setIgnoreMouseEvents(true, {
       forward: true,
@@ -120,7 +123,7 @@ ipcMain.on('set-non-penetrating-region', (event, regions) => {
 
 ipcMain.on('drag-start', (event, screenX, screenY) => {
   if (!mainWindow) return;
-  mainWindow.setIgnoreMouseEvents(false);
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
   isDragging = true;
   const [winX, winY] = mainWindow.getPosition();
   dragOffset.x = screenX - winX;
