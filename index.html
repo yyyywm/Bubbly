@@ -11,73 +11,110 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
+/* ===== 设置面板 ===== */
 #setup-panel {
   position: absolute; top: 0; left: 0;
   width: 280px; height: 300px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #fffbf5 0%, #fff6ee 100%);
   border-radius: 14px;
-  border: 1px solid #eee;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  border: 1px solid #f5e6d8;
+  box-shadow: 0 8px 32px rgba(255,152,0,0.15);
   display: flex; flex-direction: column; align-items: stretch;
-  padding: 0 16px 10px;
+  padding: 0 16px 12px;
   z-index: 100;
   overflow: hidden;
 }
 
 #setup-drag {
   display: flex; flex-direction: column; align-items: center;
-  padding: 10px 0 6px; cursor: grab;
-  border-bottom: 1px solid #f5f0f3;
+  padding: 14px 0 10px; cursor: grab;
 }
 #setup-drag:active { cursor: grabbing; }
-#setup-drag h2 { font-size: 14px; color: #ff6b9d; font-weight: 700; }
-#setup-drag .subtitle { font-size: 9px; color: #ccc; margin-top: 2px; }
-#setup-drag .hint { font-size: 8px; color: #bbb; margin-top: 1px; }
+#setup-drag h2 {
+  font-size: 15px; color: #ff6b9d; font-weight: 700;
+  letter-spacing: 0.3px;
+}
+#setup-drag .subtitle {
+  font-size: 9.5px; color: #aaa; margin-top: 2px;
+}
+#setup-drag .hint {
+  font-size: 8.5px; color: #ccc; margin-top: 2px;
+  line-height: 1.4;
+}
 
 #setup-panel .form-area {
-  padding: 8px 0 4px;
-  display: flex; flex-direction: column; gap: 5px;
+  padding: 8px 0 6px;
+  display: flex; flex-direction: column; gap: 9px;
   flex: 1;
 }
 
-#setup-panel .input-group { display: flex; flex-direction: column; }
-#setup-panel label { font-size: 9px; color: #888; font-weight: 600; margin-bottom: 2px; }
+#setup-panel .input-group {
+  display: flex; flex-direction: column; gap: 3px;
+}
+#setup-panel label {
+  font-size: 9.5px; color: #777; font-weight: 600;
+  letter-spacing: 0.4px;
+}
 #setup-panel input[type="text"] {
-  width: 100%; height: 20px; padding: 0 6px;
-  border: 1.5px solid #f0e8ee; background: #fefcff;
-  border-radius: 6px; font-size: 10px; outline: none; cursor: text;
+  width: 100%; height: 26px; padding: 0 10px;
+  border: 1.5px solid #f0e0d0; background: #ffffff;
+  border-radius: 8px; font-size: 11px; color: #333;
+  outline: none; cursor: text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-#setup-panel input[type="text"]:focus { border-color: #ff6b9d; }
+#setup-panel input[type="text"]:focus {
+  border-color: #ff6b9d;
+  box-shadow: 0 0 0 3px rgba(255,107,157,0.1);
+}
+#setup-panel input[type="text"]::placeholder {
+  color: #ccc;
+}
 
-.scale-group { display: flex; gap: 3px; }
+.scale-group { display: flex; gap: 5px; }
 .scale-btn {
-  flex: 1; height: 18px;
-  border: 1.5px solid #f0e8ee; background: #fefcff;
-  color: #888; border-radius: 6px;
-  font-size: 9px; font-weight: 600; cursor: pointer;
+  flex: 1; height: 24px;
+  border: 1.5px solid #f0e0d0; background: #ffffff;
+  color: #888; border-radius: 7px;
+  font-size: 10px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease;
 }
-.scale-btn:hover { border-color: #ff6b9d; color: #ff6b9d; }
+.scale-btn:hover {
+  border-color: #ff6b9d; color: #ff6b9d;
+  background: #fff8f5;
+}
 .scale-btn.active {
   background: linear-gradient(135deg, #ff6b9d, #ff8a65);
   border-color: transparent; color: white;
+  box-shadow: 0 2px 8px rgba(255,107,157,0.3);
 }
 
 #setup-panel .connect-area {
   padding: 4px 0 0;
 }
 #setup-panel button#btn-connect {
-  width: 100%; height: 26px;
+  width: 100%; height: 32px;
   background: linear-gradient(135deg, #ff6b9d, #ff8a65);
-  color: white; border: none; border-radius: 8px;
-  font-size: 11px; font-weight: 700; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(255,107,157,0.3);
+  color: white; border: none; border-radius: 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255,107,157,0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-#setup-panel button#btn-connect:hover { opacity: 0.9; }
-#setup-panel button#btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+#setup-panel button#btn-connect:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255,107,157,0.4);
+}
+#setup-panel button#btn-connect:active {
+  transform: translateY(0);
+}
+#setup-panel button#btn-connect:disabled {
+  opacity: 0.5; cursor: not-allowed; transform: none;
+  box-shadow: 0 4px 14px rgba(255,107,157,0.35);
+}
 
 #setup-status {
-  font-size: 8px; color: #999; text-align: center;
-  min-height: 12px; margin-top: 4px;
+  font-size: 9px; color: #bbb; text-align: center;
+  min-height: 12px; margin-top: 6px;
+  transition: color 0.2s ease;
 }
 
 #pet-area {
@@ -239,7 +276,7 @@ html, body {
 
   <div class="connect-area">
     <button id="btn-connect">💕 连接</button>
-    <div id="setup-status">双击状态灯返回设置</div>
+    <div id="setup-status">欢迎使用 💕</div>
   </div>
 </div>
 
