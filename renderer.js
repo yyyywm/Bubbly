@@ -115,89 +115,10 @@ function setSetupModePenetration() {
   window.electronAPI.disablePenetrating();
 }
 
+// 宠物模式：整个窗口不穿透，用 CSS pointer-events 精确控制交互区域
 function updateRegions() {
-  const WIN_W = 280;
-  const WIN_H = 300;
-  const regions = [];
-
-  // 桌宠本体：基于已知布局直接硬编码，完全不依赖 DOM 测量
-  // pet-container: bottom:20, left:50%, translateX(-50%)，尺寸由 petScale 决定
-  const petW = Math.round(150 * petScale / 100);
-  const petH = petW;
-  const petLeft = (WIN_W - petW) / 2;
-  const petTop  = WIN_H - 20 - petH;
-
-  regions.push({
-    x: Math.round(petLeft) - 5,
-    y: Math.round(petTop)  - 5,
-    width: petW + 10,
-    height: petH + 10
-  });
-
-  console.log('[PET-DIM] petScale=' + petScale + ' petW=' + petW + ' petH=' + petH + ' left=' + petLeft + ' top=' + petTop);
-  console.log('[REGIONS-PET]', JSON.stringify(regions));
-
-  // 气泡（显示时）
-  if (isShowing) {
-    const bubbleRect = bubbleContainer.getBoundingClientRect();
-    if (bubbleRect.width > 0 && bubbleRect.height > 0) {
-      regions.push({
-        x: Math.round(bubbleRect.left),
-        y: Math.round(bubbleRect.top),
-        width: Math.round(bubbleRect.width),
-        height: Math.round(bubbleRect.height)
-      });
-    }
-  }
-
-  // 输入面板（显示时）
-  if (inputVisible) {
-    const inputRect = inputPanel.getBoundingClientRect();
-    if (inputRect.width > 0 && inputRect.height > 0) {
-      regions.push({
-        x: Math.round(inputRect.left),
-        y: Math.round(inputRect.top),
-        width: Math.round(inputRect.width),
-        height: Math.round(inputRect.height)
-      });
-    }
-  }
-
-  // 重连提示（显示时）
-  if (reconnectVisible) {
-    const connRect = reconnectHint.getBoundingClientRect();
-    if (connRect.width > 0 && connRect.height > 0) {
-      regions.push({
-        x: Math.round(connRect.left),
-        y: Math.round(connRect.top),
-        width: Math.round(connRect.width),
-        height: Math.round(connRect.height)
-      });
-    }
-  }
-
-  // 状态指示灯
-  const dotRect = statusDot.getBoundingClientRect();
-  if (dotRect.width > 0 && dotRect.height > 0) {
-    regions.push({
-      x: Math.round(dotRect.left) - 6,
-      y: Math.round(dotRect.top) - 6,
-      width: Math.round(dotRect.width) + 12,
-      height: Math.round(dotRect.height) + 12
-    });
-  }
-
-  if (regions.length > 0) {
-    console.log('[CALLING] setNonPenetratingRegion with', regions.length, 'regions');
-    if (window.electronAPI && typeof window.electronAPI.setNonPenetratingRegion === 'function') {
-      window.electronAPI.setNonPenetratingRegion(regions);
-    } else {
-      console.error('[WARN] electronAPI not available!');
-    }
-  } else {
-    window.electronAPI && window.electronAPI.disablePenetrating();
-  }
-  console.log('[REGIONS-FINAL]', JSON.stringify(regions));
+  window.electronAPI.disablePenetrating();
+  console.log('[REGIONS] 宠物模式：窗口全量可点，交互由 CSS pointer-events 控制');
 }
 
 // ============================================================
