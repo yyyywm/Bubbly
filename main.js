@@ -5,8 +5,8 @@
  *
  *  核心功能:
  *    1. 创建无边框透明置顶窗口
- *    2. 区域穿透：CSS -webkit-app-region + setIgnoreMouseEvents
- *    3. 桌宠 JS 拖拽：mousemove 发送相对位移 → setPosition 累加
+ *    2. 区域穿透：CSS -webkit-app-region 原生管理
+ *    3. 桌宠 JS 拖拽：上报常量按下点 → 主进程用屏幕坐标 setBounds 绝对定位
  *    4. 桌宠右键菜单：Menu.popup({window}) 使用默认光标位置
  *    5. 系统托盘图标
  *    6. 隐藏菜单栏与 Dock 图标
@@ -21,7 +21,7 @@
  *    - leave-pet-mode         → 返回设置面板
  *    - pet-input-visible      → 输入面板显示/隐藏
  *    - show-pet-context-menu  → 桌宠右键菜单
- *    - drag-move              → 桌宠 JS 拖拽（相对位移）
+ *    - drag-move              → 桌宠 JS 拖拽（上报常量按下点）
  * ============================================================
  */
 
@@ -45,7 +45,6 @@ if (process.platform === 'win32') {
 // 模块级状态
 // ============================================================
 let mainWindow = null;
-let tray = null;
 let petMode = false;
 let inputPanelVisible = false;
 
@@ -219,8 +218,7 @@ if (!noSingleInstance) {
 }
 
 app.whenReady().then(() => {
-  const dpr = screen.getPrimaryDisplay().scaleFactor;
-  console.log('[MAIN] scaleFactor(你的DPI缩放) = ' + dpr);
+  console.log('[MAIN] scaleFactor(你的DPI缩放) = ' + screen.getPrimaryDisplay().scaleFactor);
   createTrayIcon(); createWindow();
 });
 app.on('window-all-closed', () => app.quit());
