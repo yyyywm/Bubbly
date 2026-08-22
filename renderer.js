@@ -116,14 +116,14 @@ function setSetupModePenetration() {
 function updateRegions() {
   const regions = [];
 
-  // 桌宠本体
+  // 桌宠本体：外扩 5px 容差，避免坐标偏差导致穿透
   const petRect = petContainer.getBoundingClientRect();
   if (petRect.width > 0 && petRect.height > 0) {
     regions.push({
-      x: Math.round(petRect.left),
-      y: Math.round(petRect.top),
-      width: Math.round(petRect.width),
-      height: Math.round(petRect.height)
+      x: Math.round(petRect.left) - 5,
+      y: Math.round(petRect.top) - 5,
+      width: Math.round(petRect.width) + 10,
+      height: Math.round(petRect.height) + 10
     });
   }
 
@@ -178,6 +178,7 @@ function updateRegions() {
   }
 
   window.electronAPI.setNonPenetratingRegion(regions);
+  console.log('[REGIONS]', JSON.stringify(regions));
 }
 
 // ============================================================
@@ -254,15 +255,16 @@ function handleMessage(data) {
     case 'welcome':
       console.log('加入房间成功:', data.room);
       isConnected = true;
-      // 切换到桌宠模式
       window.electronAPI.enterPetMode();
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
       applyScale(petScale);
-      // 用 requestAnimationFrame 确保 display:block 后的布局完成再计算区域
+      // 双层 rAF 确保 display:block + applyScale 后的布局与绘制完成
       requestAnimationFrame(() => {
-        updateStatusUI();
-        updateRegions();
+        requestAnimationFrame(() => {
+          updateStatusUI();
+          updateRegions();
+        });
       });
       break;
 
