@@ -30,6 +30,7 @@ const {
   nativeImage, screen
 } = require('electron');
 const path = require('path');
+console.log('[MAIN] electron=' + process.versions.electron);
 
 // ============================================================
 // 初始化
@@ -179,13 +180,26 @@ ipcMain.on('show-pet-context-menu', (event) => {
 // 由于定位基于稳定的屏幕坐标(以显示器为原点，setPosition 不会改变它)，
 // setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环，
 // 解决任何 DPI 下"拖拽时窗口右边/下方空白延展变大"的问题。
+let diagShown = false;
 ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
-  // 无标题栏窗口：窗口原点 == 内容原点，渲染器坐标(视口)与屏幕坐标同量纲(同 scale)，
-  // 可直接相减。clickX/clickY 是渲染器上报的"按下点"坐标，为常量。
   const { x, y } = screen.getCursorScreenPoint();
   mainWindow.setPosition(Math.round(x - clickX), Math.round(y - clickY));
+  // 诊断：仅在首次触发时输出，定位"窗口变大"是尺寸还是位置漂移
+  if (!diagShown) {
+    diagShown = true;
+    const dpr = screen.getPrimaryDisplay().scaleFactor;
+    const b = mainWindow.getBounds();
+    console.log('=== 诊断: 请拖拽后把下面输出发给我 ===');
+    console.log('[1] scaleFactor(你的 DPI 缩放) = ' + dpr);
+    console.log('[2] 窗口尺寸(w x h) = ' + b.width + ' x ' + b.height + '  <-- 拖拽后请再看是否变过');
+    console.log('[3] 窗口左上角(x,y) = ' + Math.round(b.x) + ',' + Math.round(b.y));
+    console.log('[4] 屏幕光标坐标 = ' + Math.round(x) + ',' + Math.round(y));
+    console.log('[5] 渲染器上报按下点 = ' + clickX + ',' + clickY);
+    console.log('[6] 计算出的新窗口位置 = ' + Math.round(x - clickX) + ',' + Math.round(y - clickY));
+    console.log('=== 请拖一次鼠标,再看 devtools console,把 [1]-[6] 和拖后窗口x,y、w,h 告诉我 ===');
+  }
 });
 
 // ============================================================
@@ -208,7 +222,11 @@ if (!noSingleInstance) {
   }
 }
 
-app.whenReady().then(() => { createTrayIcon(); createWindow(); });
+app.whenReady().then(() => {
+  const dpr = screen.getPrimaryDisplay().scaleFactor;
+  console.log('[MAIN] scaleFactor(你的DPI缩放) = ' + dpr);
+  createTrayIcon(); createWindow();
+});
 app.on('window-all-closed', () => app.quit());
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
