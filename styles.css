@@ -216,7 +216,6 @@ html, body {
   height: 150px;
   pointer-events: auto;
   cursor: grab;
-  -webkit-app-region: drag;  /* 原生窗口拖拽 */
 }
 
 #pet-body {
@@ -231,6 +230,7 @@ html, body {
     inset 0 4px 8px rgba(255, 255, 255, 0.3);
   animation: breathe 2s ease-in-out infinite;
   transform-origin: center center;
+  -webkit-app-region: no-drag;  /* 禁止标题栏拖拽，确保双击事件正常触发 */
 }
 
 @keyframes breathe {
