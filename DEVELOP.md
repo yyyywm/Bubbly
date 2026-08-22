@@ -53,12 +53,12 @@ node test-server.js
 │  │   │   │ 消息气泡队列                    │   │   │ │
 │  │   │   └───────────────────────────────┘   │   │ │
 │  │   └──────────────────────────────────────┘   │ │
-│  │              ↕ IPC (preload.js, 仅 4 条)     │ │
+│  │              ↕ IPC (preload.js, 仅 3 条)     │ │
 │  │   enterPetMode / leavePetMode               │ │
-│  │   petRegionUpdated / petInputVisible        │ │
+│  │   petInputVisible                           │ │
 │  └─────────────────────────────────────────────┘ │
-│  │  setDraggableRegions() → 原生拖拽 + 区域穿透 │ │
-│  │  无轮询，无 timer，无 IPC drag 通信          │ │
+│  │  CSS -webkit-app-region: drag → 原生拖拽    │ │
+│  │  零 timer，零 IPC 拖拽通信                  │ │
 │  │              ↕                                    │
 │  │  Tray Menu (菜单栏心形图标)                        │
 └──────────────────────────────────────────────────┘
@@ -86,23 +86,22 @@ node test-server.js
 
 ```
 用户双击桌宠
-  → showInput() → petInputVisible(true) → 主进程切换为全交互
+  → showInput() → petInputVisible(true) → 主进程维持 ignore: false
     → 用户输入 → Enter
       → sendMessage() → WebSocket → 服务器 → 对方
-        → hideInput() → petInputVisible(false) → 主进程恢复区域穿透
+        → hideInput() → petInputVisible(false) → 主进程维持 ignore: false
 ```
 
 ## IPC 通信协议（渲染进程 → 主进程）
 
 | 通道 | 参数 | 用途 |
 |------|------|------|
-| `enter-pet-mode` | - | 切换到桌宠模式（区域穿透） |
-| `leave-pet-mode` | - | 返回设置面板模式（全屏交互） |
-| `pet-region-updated` | `{petW, petH}` | 更新桌宠尺寸 → 重新计算拖拽区域 |
-| `pet-input-visible` | `true/false` | 输入面板显示/隐藏 → 切换交互模式 |
+| `enter-pet-mode` | - | 切换到桌宠模式 |
+| `leave-pet-mode` | - | 返回设置面板模式 |
+| `pet-input-visible` | `true/false` | 输入面板显示/隐藏 |
 
-> 与旧版相比，IPC 通道从 8 条精简为 4 条。
-> 拖拽完全由 `setDraggableRegions()` 原生处理，无需 IPC。
+> 与旧版相比，IPC 通道从 8 条精简为 3 条。
+> 拖拽完全由 CSS `-webkit-app-region: drag` 原生处理，无需 IPC。
 
 ## 拖拽与穿透方案
 
@@ -126,6 +125,7 @@ CSS: #setup-drag { -webkit-app-region: drag }  → 标题栏可拖拽
 ```
 setIgnoreMouseEvents(false)                  → 整窗口接收鼠标事件
 CSS:
+  #pet-drag-zone    { -webkit-app-region: drag }  → 桌宠顶部拖拽把手（覆盖耳朵）
   #bubble-container { -webkit-app-region: drag }  → 气泡区可拖拽窗口
   #status-dot       { -webkit-app-region: drag }  → 状态灯可拖拽窗口
   #reconnect-hint   { -webkit-app-region: drag }  → 提示可拖拽窗口
@@ -144,7 +144,7 @@ CSS:
 > **注意**：`#pet-body` 使用 `-webkit-app-region: no-drag` 而非 `drag`，
 > 因为在无边框窗口中，`dblclick` 在 drag 区域会被系统拦截（Windows 触发最大化），
 > 导致 `dblclick` 事件无法到达 DOM。使用 `no-drag` 后双击事件正常触发。
-> 窗口拖拽通过气泡/状态灯/重连提示等区域完成。
+> 窗口拖拽通过 `#pet-drag-zone`（桌宠顶部覆盖耳朵的透明区域）、气泡、状态灯、重连提示完成。
 
 ### 区域更新时机
 
@@ -178,11 +178,12 @@ CSS:
 → 检查主进程 `did-finish-load` 是否调用了 `updateMousePenetration()`
 
 **Q: 桌宠无法拖拽？**
-→ 确认 `#pet-container` 有 `-webkit-app-region: drag`
-→ 确认主进程 `enter-pet-mode` IPC 已收到
+→ 确认 `#pet-drag-zone` 在 DOM 中（位于 `#pet-container` 内）
+→ 确认 `#pet-drag-zone` 有 `-webkit-app-region: drag`
+→ 尝试在桌宠上方（耳朵区域）按住鼠标拖拽
 
 **Q: 双击桌宠无法弹出输入框？**
-→ 在无边框窗口下 `dblclick` 不受 `-webkit-app-region: drag` 影响，应正常工作
+→ 在无边框窗口下 `dblclick` 不受 `-webkit-app-region: no-drag` 影响，应正常工作
 → 检查 `petContainer` 的 `dblclick` 事件监听是否正常
 
 **Q: 消息气泡不显示？**
