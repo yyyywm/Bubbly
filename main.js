@@ -77,7 +77,7 @@ function startMousePolling() {
   mousePollTimer = setInterval(() => {
     if (!petMode || !mainWindow || !mainWindow.isVisible()) return;
     if (isDragging) return;
-    const [screenX, screenY] = screen.getCursorScreenPoint();
+    const { x: screenX, y: screenY } = screen.getCursorScreenPoint();
 
     // 输入面板可见时，整个窗口可点
     if (inputFullWindow) {
