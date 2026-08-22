@@ -367,7 +367,9 @@ function endDrag() {
   window.electronAPI.dragEnd();
 
   if (petArea.style.display === 'block') {
-    updateRegions();
+    // 拖拽结束后通知主进程刷新宠物区域坐标
+    const petSize = Math.round(150 * (petScale || 100) / 100);
+    window.electronAPI.petRegionUpdated(petSize, petSize);
   } else {
     window.electronAPI.disablePenetrating();
   }
