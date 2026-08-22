@@ -120,22 +120,22 @@ function updateRegions() {
   const WIN_H = 300;
   const regions = [];
 
-  // 桌宠本体：bottom:20, left:50%, translateX(-50%)
-  // 使用 offsetWidth/Height（布局尺寸）+ 已知窗口尺寸，避免 getBoundingClientRect 时序竞态
-  const petW = petContainer.offsetWidth || 150;
-  const petH = petContainer.offsetHeight || 150;
+  // 桌宠本体：基于已知布局直接硬编码，完全不依赖 DOM 测量
+  // pet-container: bottom:20, left:50%, translateX(-50%)，尺寸由 petScale 决定
+  const petW = Math.round(150 * petScale / 100);
+  const petH = petW;
   const petLeft = (WIN_W - petW) / 2;
   const petTop  = WIN_H - 20 - petH;
-  console.log('[PET-DIM] offsetW=' + petW + ' offsetH=' + petH + ' calcLeft=' + petLeft + ' calcTop=' + petTop);
 
-  if (petW > 0 && petH > 0) {
-    regions.push({
-      x: Math.round(petLeft) - 5,
-      y: Math.round(petTop)  - 5,
-      width: petW + 10,
-      height: petH + 10
-    });
-  }
+  regions.push({
+    x: Math.round(petLeft) - 5,
+    y: Math.round(petTop)  - 5,
+    width: petW + 10,
+    height: petH + 10
+  });
+
+  console.log('[PET-DIM] petScale=' + petScale + ' petW=' + petW + ' petH=' + petH + ' left=' + petLeft + ' top=' + petTop);
+  console.log('[REGIONS-PET]', JSON.stringify(regions));
 
   // 气泡（显示时）
   if (isShowing) {
@@ -188,11 +188,16 @@ function updateRegions() {
   }
 
   if (regions.length > 0) {
-    window.electronAPI.setNonPenetratingRegion(regions);
+    console.log('[CALLING] setNonPenetratingRegion with', regions.length, 'regions');
+    if (window.electronAPI && typeof window.electronAPI.setNonPenetratingRegion === 'function') {
+      window.electronAPI.setNonPenetratingRegion(regions);
+    } else {
+      console.error('[WARN] electronAPI not available!');
+    }
   } else {
-    window.electronAPI.disablePenetrating();
+    window.electronAPI && window.electronAPI.disablePenetrating();
   }
-  console.log('[REGIONS]', JSON.stringify(regions));
+  console.log('[REGIONS-FINAL]', JSON.stringify(regions));
 }
 
 // ============================================================
