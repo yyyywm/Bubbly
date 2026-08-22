@@ -156,8 +156,13 @@ ipcMain.on('pet-input-visible', (event, visible) => {
   console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
-ipcMain.on('show-pet-context-menu', (event, x, y) => {
+ipcMain.on('show-pet-context-menu', (event, clientX, clientY) => {
   if (!mainWindow) return;
+  // clientX/clientY 是视口坐标，加上窗口位置得到屏幕坐标
+  const [winX, winY] = mainWindow.getPosition();
+  const screenX = Math.round(winX + clientX);
+  const screenY = Math.round(winY + clientY);
+
   const contextMenu = Menu.buildFromTemplate([
     { label: '💌 发送消息', click: () => {
         event.sender.send('pet-menu-send-message');
@@ -175,8 +180,8 @@ ipcMain.on('show-pet-context-menu', (event, x, y) => {
     },
     { label: '❌ 退出', click: () => app.quit() }
   ]);
-  contextMenu.popup({ x: Math.round(x), y: Math.round(y) });
-  console.log('[MAIN] pet context menu at (' + x + ', ' + y + ')');
+  contextMenu.popup({ x: screenX, y: screenY });
+  console.log('[MAIN] pet context menu at (' + screenX + ', ' + screenY + ')');
 });
 
 // 桌宠 JS 拖拽：接收相对移动量，累加到窗口当前位置
