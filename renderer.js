@@ -106,24 +106,34 @@ function applyScale(scale) {
 // 逻辑：
 //   设置面板模式 → 全屏不穿透（所有元素可点击）
 //   桌宠模式    → 区域穿透（仅桌宠/气泡/输入框/状态灯可点击）
+//
+// 说明：区域坐标基于已知窗口尺寸（280x300）和固定布局直接计算，
+//       不依赖 getBoundingClientRect()，避免透明窗口时序竞态。
 // ============================================================
 
 function setSetupModePenetration() {
-  // 设置面板模式：全屏不穿透，所有元素可交互
   window.electronAPI.disablePenetrating();
 }
 
 function updateRegions() {
+  const WIN_W = 280;
+  const WIN_H = 300;
   const regions = [];
 
-  // 桌宠本体：外扩 5px 容差，避免坐标偏差导致穿透
-  const petRect = petContainer.getBoundingClientRect();
-  if (petRect.width > 0 && petRect.height > 0) {
+  // 桌宠本体：bottom:20, left:50%, translateX(-50%)
+  // 使用 offsetWidth/Height（布局尺寸）+ 已知窗口尺寸，避免 getBoundingClientRect 时序竞态
+  const petW = petContainer.offsetWidth || 150;
+  const petH = petContainer.offsetHeight || 150;
+  const petLeft = (WIN_W - petW) / 2;
+  const petTop  = WIN_H - 20 - petH;
+  console.log('[PET-DIM] offsetW=' + petW + ' offsetH=' + petH + ' calcLeft=' + petLeft + ' calcTop=' + petTop);
+
+  if (petW > 0 && petH > 0) {
     regions.push({
-      x: Math.round(petRect.left) - 5,
-      y: Math.round(petRect.top) - 5,
-      width: Math.round(petRect.width) + 10,
-      height: Math.round(petRect.height) + 10
+      x: Math.round(petLeft) - 5,
+      y: Math.round(petTop)  - 5,
+      width: petW + 10,
+      height: petH + 10
     });
   }
 
@@ -177,7 +187,11 @@ function updateRegions() {
     });
   }
 
-  window.electronAPI.setNonPenetratingRegion(regions);
+  if (regions.length > 0) {
+    window.electronAPI.setNonPenetratingRegion(regions);
+  } else {
+    window.electronAPI.disablePenetrating();
+  }
   console.log('[REGIONS]', JSON.stringify(regions));
 }
 
@@ -259,13 +273,15 @@ function handleMessage(data) {
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
       applyScale(petScale);
-      // 双层 rAF 确保 display:block + applyScale 后的布局与绘制完成
+      // 用 rAF + setTimeout 双重兜底，确保布局完成后再计算区域
+      // （透明窗口下 rAF 可能被跳过）
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           updateStatusUI();
           updateRegions();
         });
       });
+      setTimeout(() => { updateRegions(); }, 100);
       break;
 
     case 'message':

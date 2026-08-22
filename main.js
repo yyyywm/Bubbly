@@ -84,6 +84,7 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[MAIN] did-finish-load: reset mouse + set alwaysOnTop');
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
     mainWindow.setAlwaysOnTop(true, 'normal');
     console.log('[MAIN] Page loaded');
@@ -101,21 +102,26 @@ function createWindow() {
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
+  console.log('[MAIN] enter-pet-mode');
 });
 
 ipcMain.on('enable-penetrating', () => {
   if (!mainWindow || !petMode) return;
+  console.log('[MAIN] enable-penetrating');
   mainWindow.setIgnoreMouseEvents(true, { forward: true });
 });
 
 ipcMain.on('disable-penetrating', () => {
   if (!mainWindow) return;
+  console.log('[MAIN] disable-penetrating');
   mainWindow.setIgnoreMouseEvents(false, { forward: false });
 });
 
 ipcMain.on('set-non-penetrating-region', (event, regions) => {
   if (!mainWindow) return;
+  console.log('[MAIN] setNonPenRegion:', JSON.stringify(regions));
   if (!regions || regions.length === 0) {
+    console.log('[MAIN] WARN: regions empty, falling back to disable-penetrating');
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
   } else {
     mainWindow.setIgnoreMouseEvents(true, {
