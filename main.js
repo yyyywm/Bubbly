@@ -24,6 +24,30 @@ const {
 } = require('electron');
 const path = require('path');
 
+// ============================================================
+// 全局常量
+// ============================================================
+
+// 窗口尺寸（与 index.html 的 css 保持一致）
+const WIN_W = 280;
+const WIN_H = 300;
+
+// 桌宠基础尺寸
+const PET_BASE_SIZE = 150;
+
+// 鼠标轮询间隔（毫秒）
+const MOUSE_POLL_INTERVAL = 50;
+
+// 桌宠区域额外缓冲（用于容纳描边阴影等视觉元素）
+const PET_PADDING = 5;
+
+// 桌宠在窗口中的偏移量（对应 CSS: bottom: 20px, left: 50%）
+const PET_OFFSET_BOTTOM = 20;
+
+// ============================================================
+// 初始化
+// ============================================================
+
 // 多实例运行时隔离用户数据目录，避免缓存冲突
 app.setPath('userData', path.join(app.getPath('userData'), `instance-${process.pid}`));
 
@@ -32,16 +56,22 @@ if (process.platform === 'win32') {
   app.commandLine.appendSwitch('transparent-window-background', '#00000000');
 }
 
+// ============================================================
+// 模块级状态
+// ============================================================
 let mainWindow = null;
 let tray = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let petMode = false;
-let petW = 150;         // 桌宠宽度（屏幕坐标，跟随窗口移动）
-let petH = 150;         // 桌宠高度
+let petW = PET_BASE_SIZE;     // 桌宠宽度（屏幕坐标，跟随窗口移动）
+let petH = PET_BASE_SIZE;     // 桌宠高度
 let inputFullWindow = false;  // 输入面板是否可见
 
-// 鼠标轮询：每 50ms 检查光标是否在可交互区域内
+// 鼠标轮询定时器
+let mousePollTimer = null;
+
+// 鼠标轮询：每 MOUSE_POLL_INTERVAL ms 检查光标是否在可交互区域内
 function startMousePolling() {
   stopMousePolling();
   mousePollTimer = setInterval(() => {
@@ -57,18 +87,17 @@ function startMousePolling() {
 
     // 检查光标是否在桌宠区域
     const [winX, winY] = mainWindow.getPosition();
-    const WIN_W = 280, WIN_H = 300;
-    const petLeft = winX + (WIN_W - petW) / 2 - 5;
-    const petTop  = winY + (WIN_H - 20 - petH) - 5;
-    const overPet = screenX >= petLeft && screenX <= petLeft + petW + 10 &&
-                    screenY >= petTop  && screenY <= petTop  + petH + 10;
+    const petLeft = winX + (WIN_W - petW) / 2 - PET_PADDING;
+    const petTop  = winY + (WIN_H - PET_OFFSET_BOTTOM - petH) - PET_PADDING;
+    const overPet = screenX >= petLeft && screenX <= petLeft + petW + PET_PADDING * 2 &&
+                    screenY >= petTop  && screenY <= petTop  + petH + PET_PADDING * 2;
 
     if (overPet) {
       mainWindow.setIgnoreMouseEvents(false, { forward: false });
     } else {
       mainWindow.setIgnoreMouseEvents(true, { forward: true });
     }
-  }, 50);
+  }, MOUSE_POLL_INTERVAL);
 }
 
 function stopMousePolling() {
