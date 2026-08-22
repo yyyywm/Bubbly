@@ -7,7 +7,7 @@
  *    1. 创建无边框透明置顶窗口
  *    2. 区域穿透：CSS -webkit-app-region + setIgnoreMouseEvents
  *    3. 桌宠 JS 拖拽：mousemove 发送相对位移 → setPosition 累加
- *    4. 桌宠右键菜单：screen.getCursorScreenPoint() 获取光标位置
+ *    4. 桌宠右键菜单：Menu.popup({window}) 使用默认光标位置
  *    5. 系统托盘图标
  *    6. 隐藏菜单栏与 Dock 图标
  *
@@ -53,18 +53,9 @@ let inputPanelVisible = false;
 // ============================================================
 function updateMousePenetration() {
   if (!mainWindow) return;
-
-  if (!petMode) {
-    // 设置面板模式 → 整窗口可交互，标题栏可拖拽
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  } else if (inputPanelVisible) {
-    // 输入面板可见 → 整窗口可交互
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  } else {
-    // 桌宠模式 → 整窗口接收鼠标事件（透明区域自然忽略），
-    // 交互区域通过 CSS -webkit-app-region: drag 支持原生拖拽
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  }
+  // CSS -webkit-app-region 已处理区域交互，窗口始终接收鼠标事件
+  // 桌宠区域通过 JS 拖拽，设置面板/气泡/状态灯/输入面板通过 CSS drag
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
 }
 
 // ============================================================

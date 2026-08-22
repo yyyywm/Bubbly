@@ -2,13 +2,15 @@
  * Bubbly - Preload 脚本
  *
  * 暴露给渲染进程的 IPC API:
- *   - enterPetMode()              → 进入桌宠模式
- *   - leavePetMode()              → 返回设置面板
- *   - petInputVisible(v)          → 输入面板显示/隐藏
- *   - showPetContextMenu()        → 桌宠右键菜单
- *   - dragMove(dx, dy)            → 桌宠 JS 拖拽
+ *   - enterPetMode()            → 进入桌宠模式
+ *   - leavePetMode()            → 返回设置面板
+ *   - petInputVisible(v)        → 输入面板显示/隐藏
+ *   - showPetContextMenu()      → 桌宠右键菜单
+ *   - dragMove(dx, dy)          → 桌宠 JS 拖拽
  *
- * 拖拽：完全由 CSS -webkit-app-region: drag 原生处理，无需 IPC。
+ * 拖拽策略:
+ *   - 设置面板/气泡/状态灯/输入面板 → CSS -webkit-app-region: drag 原生拖拽
+ *   - 桌宠区域 → JS mousedown/mousemove/mouseup + IPC drag-move
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
