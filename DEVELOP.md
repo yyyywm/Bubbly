@@ -126,21 +126,25 @@ CSS: #setup-drag { -webkit-app-region: drag }  → 标题栏可拖拽
 ```
 setIgnoreMouseEvents(false)                  → 整窗口接收鼠标事件
 CSS:
-  #pet-container  { -webkit-app-region: drag }  → 左键拖拽窗口
-  #bubble-container { -webkit-app-region: drag }  → 左键拖拽窗口
-  #status-dot     { -webkit-app-region: drag }  → 左键拖拽窗口
-  #reconnect-hint { -webkit-app-region: drag }  → 左键拖拽窗口
-  其余区域自然无响应（透明背景）
+  #bubble-container { -webkit-app-region: drag }  → 气泡区可拖拽窗口
+  #status-dot       { -webkit-app-region: drag }  → 状态灯可拖拽窗口
+  #reconnect-hint   { -webkit-app-region: drag }  → 提示可拖拽窗口
+  #pet-body         { -webkit-app-region: no-drag }  → 禁止拖拽，确保双击触发
 ```
 
 **桌宠模式（有输入框）**
 ```
 setIgnoreMouseEvents(false)                  → 整窗口可交互
 CSS:
-  #input-panel  { -webkit-app-region: drag }  → 面板区域可拖拽
-  #input-panel input { -webkit-app-region: no-drag }  → 输入框不能拖拽
+  #input-panel     { -webkit-app-region: drag }  → 面板区域可拖拽
+  #input-panel input  { -webkit-app-region: no-drag }  → 输入框不能拖拽
   #input-panel .send-btn { -webkit-app-region: no-drag }  → 按钮不能拖拽
 ```
+
+> **注意**：`#pet-body` 使用 `-webkit-app-region: no-drag` 而非 `drag`，
+> 因为在无边框窗口中，`dblclick` 在 drag 区域会被系统拦截（Windows 触发最大化），
+> 导致 `dblclick` 事件无法到达 DOM。使用 `no-drag` 后双击事件正常触发。
+> 窗口拖拽通过气泡/状态灯/重连提示等区域完成。
 
 ### 区域更新时机
 
