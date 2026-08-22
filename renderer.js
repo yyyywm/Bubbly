@@ -2,32 +2,37 @@
  * ============================================================
  *  Bubbly - 渲染进程（页面逻辑）
  * ============================================================
+ *
+ *  区域穿透与拖拽完全由主进程通过 setDraggableRegions 原生管理，
+ *  渲染进程仅需在模式切换时通知主进程。
+ * ============================================================
  */
 
 // ============================================================
-// DOM 元素引用
+// DOM 元素
 // ============================================================
-const setupPanel    = document.getElementById('setup-panel');
-const setupDrag     = document.getElementById('setup-drag');
-const petArea       = document.getElementById('pet-area');
-const petContainer  = document.getElementById('pet-container');
-const petBody       = document.getElementById('pet-body');
+const setupPanel     = document.getElementById('setup-panel');
+const petArea        = document.getElementById('pet-area');
+const petContainer   = document.getElementById('pet-container');
+const petBody        = document.getElementById('pet-body');
 const bubbleContainer = document.getElementById('bubble-container');
-const inputPanel    = document.getElementById('input-panel');
-const msgInput      = document.getElementById('msg-input');
-const btnSend       = document.getElementById('btn-send');
-const btnConnect    = document.getElementById('btn-connect');
-const inpServer     = document.getElementById('inp-server');
-const inpRoom       = document.getElementById('inp-room');
-const inpNickname   = document.getElementById('inp-nickname');
-const setupStatus   = document.getElementById('setup-status');
-const statusDot     = document.getElementById('status-dot');
-const reconnectHint = document.getElementById('reconnect-hint');
+const inputPanel     = document.getElementById('input-panel');
+const msgInput       = document.getElementById('msg-input');
+const btnSend        = document.getElementById('btn-send');
+const btnConnect     = document.getElementById('btn-connect');
+const inpServer      = document.getElementById('inp-server');
+const inpRoom        = document.getElementById('inp-room');
+const inpNickname    = document.getElementById('inp-nickname');
+const setupStatus    = document.getElementById('setup-status');
+const statusDot      = document.getElementById('status-dot');
+const reconnectHint  = document.getElementById('reconnect-hint');
 
 // ============================================================
-// 常量与状态
+// 状态
 // ============================================================
 const MAX_QUEUE_SIZE = 50;
+const userId = crypto.randomUUID();
+const messageQueue = [];
 
 let ws = null;
 let isConnected = false;
@@ -38,29 +43,26 @@ let currentRoom = '';
 let isShowing = false;
 let nickname = '';
 let petScale = 100;
-const userId = crypto.randomUUID();
-const messageQueue = [];
 
 // ============================================================
-// 加载保存的设置
+// 持久化设置
 // ============================================================
 function loadSettings() {
   try {
     const saved = localStorage.getItem('bubbly_settings');
-    if (saved) {
-      const settings = JSON.parse(saved);
-      if (settings.serverUrl) inpServer.value = settings.serverUrl;
-      if (settings.room) {
-        inpRoom.value = settings.room;
-        currentRoom = settings.room;
-      }
-      if (settings.nickname) inpNickname.value = settings.nickname;
-      if (settings.scale) {
-        petScale = settings.scale;
-        document.querySelectorAll('.scale-btn').forEach(btn => {
-          btn.classList.toggle('active', parseInt(btn.dataset.scale) === petScale);
-        });
-      }
+    if (!saved) return;
+    const s = JSON.parse(saved);
+    if (s.serverUrl) inpServer.value = s.serverUrl;
+    if (s.room) {
+      inpRoom.value = s.room;
+      currentRoom = s.room;
+    }
+    if (s.nickname) inpNickname.value = s.nickname;
+    if (s.scale) {
+      petScale = s.scale;
+      document.querySelectorAll('.scale-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.scale) === petScale);
+      });
     }
   } catch (e) {
     console.warn('加载设置失败:', e);
@@ -81,7 +83,7 @@ function saveSettings() {
 }
 
 // ============================================================
-// 缩放管理
+// 缩放
 // ============================================================
 function applyScale(scale) {
   petScale = scale;
@@ -99,48 +101,24 @@ function applyScale(scale) {
   const dotTop = Math.max(10, 300 - 220 - petSize - 12) + 120 + 6;
   statusDot.style.top = dotTop + 'px';
 
-  // 通知主进程更新宠物区域坐标（用于鼠标轮询穿透）
+  // 通知主进程更新拖拽区域
   window.electronAPI.petRegionUpdated(petSize, petSize);
-
   saveSettings();
 }
 
 // ============================================================
-// 区域穿透管理
-// 逻辑：
-//   设置面板模式 → 全屏不穿透（所有元素可点击）
-//   桌宠模式    → 区域穿透（仅桌宠/气泡/输入框/状态灯可点击）
-//
-// 说明：区域坐标基于已知窗口尺寸（280x300）和固定布局直接计算，
-//       不依赖 getBoundingClientRect()，避免透明窗口时序竞态。
+// WebSocket
 // ============================================================
-
-function setSetupModePenetration() {
-  window.electronAPI.disablePenetrating();
-}
-
-// 区域穿透由主进程鼠标轮询控制，renderer 端无需额外操作
-// （保留函数作为未来扩展点）
-function updateRegions() {
-  // 区域穿透完全由 main.js 的 startMousePolling() 管理
-}
-
-// ============================================================
-// WebSocket 连接管理
-// ============================================================
-
 function connect() {
   const serverUrl = inpServer.value.trim();
   const room = inpRoom.value.trim();
 
   if (!serverUrl) {
-    setupStatus.textContent = '⚠️ 请输入服务器地址';
-    setupStatus.style.color = '#f44336';
+    setStatus('⚠️ 请输入服务器地址', '#f44336');
     return;
   }
   if (!room) {
-    setupStatus.textContent = '⚠️ 请输入房间号';
-    setupStatus.style.color = '#f44336';
+    setStatus('⚠️ 请输入房间号', '#f44336');
     return;
   }
 
@@ -148,8 +126,7 @@ function connect() {
   currentRoom = room;
   saveSettings();
 
-  setupStatus.textContent = '正在连接服务器…';
-  setupStatus.style.color = '#666';
+  setStatus('正在连接服务器…', '#666');
   btnConnect.disabled = true;
 
   if (ws) ws.close();
@@ -162,9 +139,7 @@ function connect() {
       ws.send(JSON.stringify({ type: 'join', room: currentRoom, id: userId }));
     };
 
-    ws.onmessage = (event) => {
-      handleMessage(JSON.parse(event.data));
-    };
+    ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
 
     ws.onclose = () => {
       console.log('WebSocket 已断开');
@@ -172,7 +147,6 @@ function connect() {
       updateStatusUI();
       if (petArea.style.display === 'block') {
         showReconnectHint();
-        updateRegions();
         scheduleReconnect();
       }
     };
@@ -181,16 +155,13 @@ function connect() {
       console.error('WebSocket 错误');
       if (petArea.style.display === 'block') {
         showReconnectHint();
-        updateRegions();
       } else {
-        setupStatus.textContent = '⚠️ 连接失败，请检查服务器地址';
-        setupStatus.style.color = '#f44336';
+        setStatus('⚠️ 连接失败，请检查服务器地址', '#f44336');
         btnConnect.disabled = false;
       }
     };
   } catch (e) {
-    setupStatus.textContent = '⚠️ 连接参数错误: ' + e.message;
-    setupStatus.style.color = '#f44336';
+    setStatus('⚠️ 连接参数错误: ' + e.message, '#f44336');
     btnConnect.disabled = false;
   }
 }
@@ -204,15 +175,7 @@ function handleMessage(data) {
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
       applyScale(petScale);
-      // 用 rAF + setTimeout 双重兜底，确保布局完成后再计算区域
-      // （透明窗口下 rAF 可能被跳过）
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          updateStatusUI();
-          updateRegions();
-        });
-      });
-      setTimeout(() => { updateRegions(); }, 100);
+      updateStatusUI();
       break;
 
     case 'message':
@@ -229,8 +192,7 @@ function handleMessage(data) {
 
     case 'error':
       if (setupPanel.style.display !== 'none') {
-        setupStatus.textContent = '⚠️ ' + data.msg;
-        setupStatus.style.color = '#f44336';
+        setStatus('⚠️ ' + data.msg, '#f44336');
         btnConnect.disabled = false;
       }
       break;
@@ -240,7 +202,6 @@ function handleMessage(data) {
 // ============================================================
 // 消息气泡
 // ============================================================
-
 function enqueueBubble(text) {
   if (messageQueue.length >= MAX_QUEUE_SIZE) {
     messageQueue.shift();
@@ -260,8 +221,6 @@ function showNextBubble() {
   bubble.textContent = text;
   bubbleContainer.appendChild(bubble);
 
-  updateRegions();
-
   requestAnimationFrame(() => {
     requestAnimationFrame(() => bubble.classList.add('show'));
   });
@@ -274,7 +233,6 @@ function showNextBubble() {
   setTimeout(() => {
     bubble.remove();
     isShowing = false;
-    updateRegions();
     showNextBubble();
   }, 2850);
 }
@@ -282,7 +240,6 @@ function showNextBubble() {
 // ============================================================
 // 发送消息
 // ============================================================
-
 function sendMessage() {
   const text = msgInput.value.trim();
   if (!text) return;
@@ -292,7 +249,7 @@ function sendMessage() {
     type: 'message',
     room: currentRoom,
     id: userId,
-    text: text
+    text
   }));
 
   msgInput.value = '';
@@ -302,7 +259,6 @@ function sendMessage() {
 // ============================================================
 // 输入面板
 // ============================================================
-
 function showInput() {
   if (inputVisible) return;
   inputVisible = true;
@@ -310,7 +266,6 @@ function showInput() {
   msgInput.value = '';
   msgInput.focus();
   petArea.style.cursor = 'default';
-  // 输入时整个窗口可点（输入面板可能在窗口任意位置）
   window.electronAPI.petInputVisible(true);
 }
 
@@ -324,8 +279,12 @@ function hideInput() {
 }
 
 // ============================================================
-// 状态
+// UI 状态
 // ============================================================
+function setStatus(text, color) {
+  setupStatus.textContent = text;
+  setupStatus.style.color = color || '#bbb';
+}
 
 function updateStatusUI() {
   if (isConnected) {
@@ -335,9 +294,6 @@ function updateStatusUI() {
     reconnectVisible = false;
     reconnectHint.style.display = 'none';
     statusDot.className = 'offline';
-  }
-  if (petArea.style.display === 'block') {
-    updateRegions();
   }
 }
 
@@ -356,95 +312,12 @@ function scheduleReconnect() {
 }
 
 // ============================================================
-// 拖拽
+// 双击桌宠 → 弹出输入框 / 断开时重连
 // ============================================================
-
-let isDragging = false;
-let lastDragX = 0;
-let lastDragY = 0;
-
-// 最小移动距离（像素），低于此值跳过 IPC 调用，消除静态抖动与过度 IPC 开销
-const MIN_DRAG_DISTANCE = 2;
-
-function endDrag() {
-  if (!isDragging) return;
-  isDragging = false;
-  document.body.style.cursor = 'default';
-  petContainer.style.cursor = 'default';
-  window.electronAPI.dragEnd();
-
-  if (petArea.style.display === 'block') {
-    // 主进程轮询循环自动从 mainWindow.getPosition() 读取窗口位置
-    // petW/petH 已在 applyScale 时更新，无需再次通知
-  } else {
-    window.electronAPI.disablePenetrating();
-  }
-}
-
-function startDrag(e, button) {
-  e.preventDefault();
-
-  if (isDragging) endDrag();
-
-  isDragging = true;
-  document.body.style.cursor = 'grabbing';
-  petContainer.style.cursor = 'grabbing';
-
-  // 拖拽期间临时让窗口捕获鼠标事件（否则 setPosition 无效）
-  window.electronAPI.setIgnoreMouseEvents(false, false);
-  window.electronAPI.dragStart(e.screenX, e.screenY);
-}
-
-// 设置面板：左键拖拽标题栏
-setupDrag.addEventListener('mousedown', (e) => {
-  if (e.button !== 0) return;
-  startDrag(e, 0);
-});
-
-// 桌宠：右键拖拽
-petContainer.addEventListener('mousedown', (e) => {
-  if (e.button !== 2) return;
-  startDrag(e, 2);
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-
-  // 跳过微小移动（< MIN_DRAG_DISTANCE 像素），避免静态抖动和无效 IPC
-  const dx = e.screenX - lastDragX;
-  const dy = e.screenY - lastDragY;
-  if (Math.abs(dx) < MIN_DRAG_DISTANCE && Math.abs(dy) < MIN_DRAG_DISTANCE) return;
-
-  lastDragX = e.screenX;
-  lastDragY = e.screenY;
-
-  // 直接调用 setPosition，不做任何节流或排队——鼠标一动窗口立即响应
-  window.electronAPI.dragMove(e.screenX, e.screenY);
-});
-
-// mouseup 始终结束拖拽，不做 button 校验
-document.addEventListener('mouseup', () => {
-  endDrag();
-});
-
-// 鼠标移出窗口也结束拖拽（无边框窗口 boundary 检测）
-window.addEventListener('mouseleave', (e) => {
-  if (isDragging && e.relatedTarget === null) {
-    endDrag();
-  }
-});
-
-document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-// ============================================================
-// 双击桌宠
-// ============================================================
-
 petContainer.addEventListener('dblclick', (e) => {
   e.preventDefault();
   e.stopPropagation();
   if (!isConnected) {
-    // 断开状态下双击桌宠立即重连
     if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = null;
     connect();
@@ -453,7 +326,6 @@ petContainer.addEventListener('dblclick', (e) => {
   showInput();
 });
 
-// 输入框失去焦点即隐藏
 inputPanel.addEventListener('focusout', (e) => {
   if (inputPanel.contains(e.relatedTarget)) return;
   hideInput();
@@ -468,7 +340,6 @@ btnSend.addEventListener('click', sendMessage);
 // ============================================================
 // 缩放按钮
 // ============================================================
-
 document.querySelectorAll('.scale-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
@@ -477,7 +348,6 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
     saveSettings();
     if (petArea.style.display === 'block') {
       applyScale(petScale);
-      updateRegions();
     }
   });
 });
@@ -487,7 +357,9 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
 // ============================================================
 btnConnect.addEventListener('click', connect);
 
-// 双击状态灯：已连接→返回设置，已断开→立即重连
+// ============================================================
+// 双击状态灯：已连接 → 返回设置，已断开 → 立即重连
+// ============================================================
 statusDot.addEventListener('dblclick', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -496,13 +368,10 @@ statusDot.addEventListener('dblclick', (e) => {
     isConnected = false;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     reconnectVisible = false;
-    window.electronAPI.disablePenetrating();
-    window.electronAPI.setIgnoreMouseEvents(false, false);
     window.electronAPI.leavePetMode();
     petArea.style.display = 'none';
     setupPanel.style.display = 'flex';
-    setupStatus.textContent = '已断开连接';
-    setupStatus.style.color = '#f44336';
+    setStatus('已断开连接', '#f44336');
     btnConnect.disabled = false;
     hideInput();
     messageQueue.length = 0;
@@ -518,7 +387,5 @@ statusDot.addEventListener('dblclick', (e) => {
 // 初始化
 // ============================================================
 loadSettings();
-// 确保设置面板模式全屏不穿透
-setSetupModePenetration();
+window.electronAPI.leavePetMode();  // 确保初始化时主进程知道当前是设置模式
 console.log('[RENDERER] Init complete, electronAPI:', !!window.electronAPI);
-

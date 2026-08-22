@@ -4,54 +4,52 @@
  * ============================================================
  *
  *  核心功能:
- *    1. 创建无边框透明窗口（alwaysOnTop 置顶 + 鼠标穿透）
- *    2. 区域穿透控制：仅桌宠/气泡/输入框区域可交互，其余穿透
- *    3. 系统托盘图标（菜单栏退出/重启）
+ *    1. 创建无边框透明置顶窗口
+ *    2. 区域穿透：通过 setDraggableRegions 定义可交互区域，
+ *       其余区域原生穿透，无需轮询
+ *    3. 系统托盘图标
  *    4. 隐藏菜单栏与 Dock 图标
- *    5. 窗口拖拽（设置面板左键 / 桌宠右键）
+ *    5. 原生窗口拖拽（Electron 自动处理，无需 IPC）
  *
- *  通信通道 (IPC):
- *    - enable-penetrating     → 开启全屏穿透
- *    - disable-penetrating    → 关闭穿透
- *    - set-non-penetrating-region → 区域穿透
- *    - drag-start / drag-move / drag-end → 拖拽
+ *  拖拽方案:
+ *    使用 BrowserWindow.setDraggableRegions() 定义"标题栏区域"，
+ *    在该区域内按住鼠标即可原生拖拽窗口，由 OS 直接处理。
+ *    无需 mousePollTimer，无需 IPC drag 通信。
+ *
+ *  IPC 通信（仅 4 条）:
+ *    - enter-pet-mode       → 切换到桌宠模式（区域穿透）
+ *    - leave-pet-mode       → 返回设置面板模式（全屏交互）
+ *    - pet-region-updated   → 更新桌宠尺寸 → 重新计算区域
+ *    - pet-input-visible    → 输入面板显示/隐藏 → 切换交互模式
  * ============================================================
  */
 
 const {
   app, BrowserWindow, ipcMain, Menu, Tray,
-  nativeImage, screen
+  nativeImage
 } = require('electron');
 const path = require('path');
 
 // ============================================================
-// 全局常量
+// 常量
 // ============================================================
-
-// 窗口尺寸（与 index.html 的 css 保持一致）
 const WIN_W = 280;
 const WIN_H = 300;
-
-// 桌宠基础尺寸
-const PET_BASE_SIZE = 150;
-
-// 鼠标轮询间隔（毫秒）
-const MOUSE_POLL_INTERVAL = 50;
-
-// 桌宠区域额外缓冲（用于容纳描边阴影等视觉元素）
-const PET_PADDING = 5;
-
-// 桌宠在窗口中的偏移量（对应 CSS: bottom: 20px, left: 50%）
-const PET_OFFSET_BOTTOM = 20;
+const PET_OFFSET_BOTTOM = 20;    // 桌宠距离窗口底部
+const BUBBLE_CONTAINER_W = 220;  // 气泡容器宽度
+const BUBBLE_CONTAINER_H = 120;  // 气泡容器高度
+const BUBBLE_GAP = 12;           // 气泡与桌宠间距
+const DOT_SIZE = 6;              // 状态灯尺寸
+const DOT_GAP = 6;               // 气泡到状态灯的额外间距
+const HINT_W = 130;              // 重连提示宽度
+const HINT_H = 30;               // 重连提示高度
+const HINT_TOP = 100;            // 重连提示 Y 坐标
 
 // ============================================================
 // 初始化
 // ============================================================
-
-// 多实例运行时隔离用户数据目录，避免缓存冲突
 app.setPath('userData', path.join(app.getPath('userData'), `instance-${process.pid}`));
 
-// 透明窗口关键：让合成器使用完全透明的后备层，避免拖拽时白底闪烁
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('transparent-window-background', '#00000000');
 }
@@ -61,74 +59,71 @@ if (process.platform === 'win32') {
 // ============================================================
 let mainWindow = null;
 let tray = null;
-let isDragging = false;
-let dragOffset = { x: 0, y: 0 };
 let petMode = false;
-let petW = PET_BASE_SIZE;     // 桌宠宽度（屏幕坐标，跟随窗口移动）
-let petH = PET_BASE_SIZE;     // 桌宠高度
-let inputFullWindow = false;  // 输入面板是否可见
+let petW = 150;
+let petH = 150;
+let inputPanelVisible = false;
 
-// 鼠标轮询定时器
-let mousePollTimer = null;
+// ============================================================
+// 拖拽区域管理
+// ============================================================
+function updateDraggableRegions() {
+  if (!mainWindow) return;
 
-// 缓存当前 ignore 状态，相同状态下跳过 setIgnoreMouseEvents 调用
-// setIgnoreMouseEvents 每次都会走 Electron→Chromium→DWM 完整链路，
-// 频繁相同调用会在 CPU 降频后产生明显的冷启动延迟
-let lastIgnoreState = { ignore: true, forward: true };
-
-// 安全设置 ignore 状态：仅当状态实际变化时才调用
-// 相同状态下跳过，避免频繁 IPC 调用导致 CPU 冷启动延迟
-function setIgnoreIfChanged(ignore, forward) {
-  if (lastIgnoreState.ignore === ignore && lastIgnoreState.forward === forward) {
-    return; // 状态未变，跳过
+  // 设置面板模式：仅标题栏区域可拖拽，其余区域可交互（输入框/按钮正常响应）
+  if (!petMode) {
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
+    // 标题栏高度（对应 CSS: #setup-drag padding + content ≈ 45px）
+    mainWindow.setDraggableRegions([{ x: 0, y: 0, width: WIN_W, height: 45 }]);
+    return;
   }
-  lastIgnoreState = { ignore, forward };
-  mainWindow.setIgnoreMouseEvents(ignore, { forward });
-}
 
-// 鼠标轮询：每 MOUSE_POLL_INTERVAL ms 检查光标是否在可交互区域内
-function startMousePolling() {
-  stopMousePolling();
-  mousePollTimer = setInterval(() => {
-    if (!petMode || !mainWindow || !mainWindow.isVisible()) return;
-    if (isDragging) return;
-    const { x: screenX, y: screenY } = screen.getCursorScreenPoint();
-
-    // 输入面板可见时，整个窗口可点
-    if (inputFullWindow) {
-      setIgnoreIfChanged(false, false);
-      return;
-    }
-
-    // 检查光标是否在桌宠区域
-    const [winX, winY] = mainWindow.getPosition();
-    const petLeft = winX + (WIN_W - petW) / 2 - PET_PADDING;
-    const petTop  = winY + (WIN_H - PET_OFFSET_BOTTOM - petH) - PET_PADDING;
-    const overPet = screenX >= petLeft && screenX <= petLeft + petW + PET_PADDING * 2 &&
-                    screenY >= petTop  && screenY <= petTop  + petH + PET_PADDING * 2;
-
-    if (overPet) {
-      setIgnoreIfChanged(false, false);
-    } else {
-      setIgnoreIfChanged(true, true);
-    }
-  }, MOUSE_POLL_INTERVAL);
-}
-
-function stopMousePolling() {
-  if (mousePollTimer) {
-    clearInterval(mousePollTimer);
-    mousePollTimer = null;
+  // 输入面板可见：整窗口可交互、可拖拽
+  if (inputPanelVisible) {
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
+    mainWindow.setDraggableRegions([{ x: 0, y: 0, width: WIN_W, height: WIN_H }]);
+    return;
   }
+
+  // 桌宠模式：默认穿透，仅交互区域可点击/拖拽
+  mainWindow.setIgnoreMouseEvents(true, { forward: true });
+
+  const regions = [];
+
+  // 气泡容器区域
+  const bubbleTop = Math.round(Math.max(10, WIN_H - BUBBLE_CONTAINER_H - petH - BUBBLE_GAP));
+  const bubbleX   = Math.round((WIN_W - BUBBLE_CONTAINER_W) / 2);
+  regions.push({ x: bubbleX, y: bubbleTop, width: BUBBLE_CONTAINER_W, height: BUBBLE_CONTAINER_H });
+
+  // 状态灯区域
+  const dotY = Math.round(bubbleTop + BUBBLE_CONTAINER_H + DOT_GAP);
+  const dotX = Math.round((WIN_W - DOT_SIZE) / 2);
+  regions.push({ x: dotX, y: dotY, width: DOT_SIZE, height: DOT_SIZE });
+
+  // 桌宠区域
+  const petX = Math.round((WIN_W - petW) / 2);
+  const petY = Math.round(WIN_H - PET_OFFSET_BOTTOM - petH);
+  regions.push({ x: petX, y: petY, width: petW, height: petH });
+
+  // 重连提示区域（始终定义，不可见时由 CSS display:none 自然不响应）
+  const hintX = Math.round((WIN_W - HINT_W) / 2);
+  regions.push({ x: hintX, y: HINT_TOP, width: HINT_W, height: HINT_H });
+
+  mainWindow.setDraggableRegions(regions);
 }
 
+// ============================================================
+// 系统托盘
+// ============================================================
 function createTrayIcon() {
   const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
     <path fill="white" d="M8 14.5s-5.5-3.6-5.5-8C2.5 4.5 4 3 5.8 3c1.1 0 2 .6 2.2 1.5C8.2 3.6 9.1 3 10.2 3 12 3 13.5 4.5 13.5 6.5c0 4.4-5.5 8-5.5 8z" opacity="0.95"/>
     <circle cx="5.8" cy="5.5" r="1.2" fill="black" opacity="0.7"/>
     <circle cx="10.2" cy="5.5" r="1.2" fill="black" opacity="0.7"/>
   </svg>`;
-  const img = nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svgData).toString('base64'));
+  const img = nativeImage.createFromDataURL(
+    'data:image/svg+xml;base64,' + Buffer.from(svgData).toString('base64')
+  );
   tray = new Tray(img);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '💕 Bubbly', enabled: false },
@@ -141,6 +136,9 @@ function createTrayIcon() {
   tray.on('click', () => tray.popUpContextMenu());
 }
 
+// ============================================================
+// 窗口创建
+// ============================================================
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 280,
@@ -165,10 +163,9 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   mainWindow.webContents.on('did-finish-load', () => {
-    console.log('[MAIN] did-finish-load: reset mouse + set alwaysOnTop');
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
+    console.log('[MAIN] did-finish-load');
     mainWindow.setAlwaysOnTop(true, 'normal');
-    console.log('[MAIN] Page loaded');
+    updateDraggableRegions();
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
@@ -179,30 +176,22 @@ function createWindow() {
   }
 }
 
-// 预热 DWM 合成器：提前调用一次 setPosition，避免首次拖拽时 CPU 冷启动延迟
-function warmupDragPath() {
-  if (!mainWindow) return;
-  const [x, y] = mainWindow.getPosition();
-  mainWindow.setPosition(x, y);
-  console.log('[MAIN] drag path warmed up');
-}
-
-// 切换到桌宠模式
+// ============================================================
+// IPC
+// ============================================================
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
-  // 重置 ignore 状态缓存，确保首次轮询生效
-  lastIgnoreState = { ignore: null, forward: null };
-  warmupDragPath();
-  startMousePolling();
+  inputPanelVisible = false;
+  updateDraggableRegions();
   console.log('[MAIN] enter-pet-mode');
 });
 
 ipcMain.on('leave-pet-mode', () => {
   if (!mainWindow) return;
   petMode = false;
-  stopMousePolling();
-  setIgnoreIfChanged(false, false);
+  inputPanelVisible = false;
+  updateDraggableRegions();
   console.log('[MAIN] leave-pet-mode');
 });
 
@@ -210,55 +199,20 @@ ipcMain.on('pet-region-updated', (event, { petW: newW, petH: newH }) => {
   if (!mainWindow || !petMode) return;
   petW = newW;
   petH = newH;
+  updateDraggableRegions();
   console.log('[MAIN] petRegionUpdated: petW=' + petW + ' petH=' + petH);
 });
 
 ipcMain.on('pet-input-visible', (event, visible) => {
   if (!mainWindow || !petMode) return;
-  inputFullWindow = !!visible;
-  console.log('[MAIN] petInputVisible: ' + inputFullWindow);
+  inputPanelVisible = !!visible;
+  updateDraggableRegions();
+  console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
-ipcMain.on('enable-penetrating', () => {
-  if (!mainWindow || !petMode) return;
-  console.log('[MAIN] enable-penetrating');
-  setIgnoreIfChanged(true, true);
-});
-
-ipcMain.on('disable-penetrating', () => {
-  if (!mainWindow) return;
-  console.log('[MAIN] disable-penetrating');
-  setIgnoreIfChanged(false, false);
-});
-
-ipcMain.on('set-ignore-mouse-events', (event, opts) => {
-  if (!mainWindow) return;
-  console.log('[MAIN] setIgnoreMouseEvents:', JSON.stringify(opts));
-  mainWindow.setIgnoreMouseEvents(!!opts.ignore, { forward: !!opts.forward });
-});
-
-ipcMain.on('drag-start', (event, screenX, screenY) => {
-  if (!mainWindow) return;
-  mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  isDragging = true;
-  const [winX, winY] = mainWindow.getPosition();
-  dragOffset.x = screenX - winX;
-  dragOffset.y = screenY - winY;
-});
-
-ipcMain.on('drag-move', (event, screenX, screenY) => {
-  if (!mainWindow || !isDragging) return;
-  mainWindow.setPosition(Math.round(screenX - dragOffset.x), Math.round(screenY - dragOffset.y));
-});
-
-ipcMain.on('drag-end', () => {
-  isDragging = false;
-  if (mainWindow) {
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  }
-});
-
-// --no-single-instance 允许多开（开发调试用）；打包发布时默认启用单实例锁
+// ============================================================
+// 应用生命周期
+// ============================================================
 const args = process.argv.slice(2);
 const noSingleInstance = args.includes('--no-single-instance');
 
