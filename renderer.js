@@ -361,7 +361,7 @@ function scheduleReconnect() {
 
 let isDragging = false;
 let lastDragTime = 0;
-const DRAG_THROTTLE_MS = 30; // 约 33fps，平衡流畅度与减少视觉 artifact
+const DRAG_THROTTLE_MS = 16; // 约 60fps，与显示器刷新率同步，避免 33fps 导致的视觉卡顿
 
 function endDrag() {
   if (!isDragging) return;
@@ -406,8 +406,8 @@ petContainer.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
-  // 节流：减少 setPosition 调用频率，避免透明窗口拖拽时的视觉拉伸
-  const now = Date.now();
+  // 节流：16ms ≈ 60fps，与屏幕刷新同步，保证平滑拖拽
+  const now = performance.now();
   if (now - lastDragTime < DRAG_THROTTLE_MS) return;
   lastDragTime = now;
   window.electronAPI.dragMove(e.screenX, e.screenY);
