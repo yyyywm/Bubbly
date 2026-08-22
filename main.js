@@ -5,28 +5,29 @@
  *
  *  核心功能:
  *    1. 创建无边框透明置顶窗口
- *    2. 区域穿透：setIgnoreMouseEvents + CSS -webkit-app-region
- *    3. 原生窗口拖拽：CSS -webkit-app-region: drag，OS 直接处理
- *    4. 系统托盘图标
- *    5. 隐藏菜单栏与 Dock 图标
+ *    2. 区域穿透：CSS -webkit-app-region + setIgnoreMouseEvents
+ *    3. 桌宠 JS 拖拽：mousemove 发送相对位移 → setPosition 累加
+ *    4. 桌宠右键菜单：screen.getCursorScreenPoint() 获取光标位置
+ *    5. 系统托盘图标
+ *    6. 隐藏菜单栏与 Dock 图标
  *
  *  方案说明:
- *    设置面板模式 → setIgnoreMouseEvents(false)，整窗口交互，标题栏可拖拽
- *    桌宠模式    → setIgnoreMouseEvents(true, forward)，空白区域穿透
- *                  -webkit-app-region: drag 标记桌宠/气泡/状态灯/提示
- *                  使这些区域支持原生拖拽和点击
- *    输入面板    → setIgnoreMouseEvents(false)，整窗口交互
+ *    设置面板/气泡/状态灯/提示 → CSS -webkit-app-region: drag 原生拖拽
+ *    桌宠区域 → CSS no-drag + JS 拖拽（支持双击和右键）
+ *    输入面板 → 整窗口交互
  *
- *  IPC 通信（仅 3 条）:
- *    - enter-pet-mode    → 进入桌宠模式
- *    - leave-pet-mode    → 返回设置面板
- *    - pet-input-visible → 输入面板显示/隐藏
+ *  IPC 通信（5 条）:
+ *    - enter-pet-mode         → 进入桌宠模式
+ *    - leave-pet-mode         → 返回设置面板
+ *    - pet-input-visible      → 输入面板显示/隐藏
+ *    - show-pet-context-menu  → 桌宠右键菜单
+ *    - drag-move              → 桌宠 JS 拖拽（相对位移）
  * ============================================================
  */
 
 const {
   app, BrowserWindow, ipcMain, Menu, Tray,
-  nativeImage
+  nativeImage, screen
 } = require('electron');
 const path = require('path');
 
@@ -156,12 +157,12 @@ ipcMain.on('pet-input-visible', (event, visible) => {
   console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
-ipcMain.on('show-pet-context-menu', (event, clientX, clientY) => {
+ipcMain.on('show-pet-context-menu', (event) => {
   if (!mainWindow) return;
-  // clientX/clientY 是视口坐标，加上窗口位置得到屏幕坐标
-  const [winX, winY] = mainWindow.getPosition();
-  const screenX = Math.round(winX + clientX);
-  const screenY = Math.round(winY + clientY);
+  // 直接读取系统光标位置，完全绕过坐标系转换问题
+  const cursorPos = screen.getCursorScreenPoint();
+  const screenX = cursorPos.x;
+  const screenY = cursorPos.y;
 
   const contextMenu = Menu.buildFromTemplate([
     { label: '💌 发送消息', click: () => {

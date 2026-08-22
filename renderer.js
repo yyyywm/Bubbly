@@ -333,9 +333,9 @@ petContainer.addEventListener('dblclick', (e) => {
 petContainer.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   e.stopPropagation();
-  // 使用 clientX/clientY（视口坐标）+ 主进程获取窗口位置，
-  // 避免 screenX/screenY 在 DPI 缩放下的坐标系不一致问题
-  window.electronAPI.showPetContextMenu(e.clientX, e.clientY);
+  // 坐标由主进程通过 screen.getCursorScreenPoint() 直接读取，
+  // 完全绕过 DPI 缩放下的坐标系不一致问题
+  window.electronAPI.showPetContextMenu();
 });
 
 // 菜单项 IPC 回调：发送消息

@@ -99,7 +99,7 @@ node test-server.js
 | `enter-pet-mode` | - | 切换到桌宠模式 |
 | `leave-pet-mode` | - | 返回设置面板模式 |
 | `pet-input-visible` | `true/false` | 输入面板显示/隐藏 |
-| `show-pet-context-menu` | `clientX, clientY` | 桌宠右键菜单（视口坐标，主进程 + 窗口位置转屏幕坐标） |
+| `show-pet-context-menu` | - | 桌宠右键菜单（主进程直接读取光标位置） |
 | `drag-move` | `dx, dy` | 桌宠 JS 拖拽（相对移动量） |
 
 > 与旧版相比，IPC 通道从 8 条精简为 5 条。
