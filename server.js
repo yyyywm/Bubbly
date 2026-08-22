@@ -26,9 +26,13 @@ const { WebSocketServer } = require('ws');
 const http = require('http');
 
 // ============================================================
-// 配置区
+// 常量
 // ============================================================
 const PORT = 8080;
+const MAX_ROOM_SIZE = 2;
+const MAX_PAYLOAD = 64 * 1024;
+const HEARTBEAT_INTERVAL = 30000;
+const WS_READY_OPEN = 1;
 
 // ============================================================
 // 房间管理: 每个房间最多2人
@@ -43,7 +47,7 @@ const httpServer = http.createServer((req, res) => {
 });
 
 // 创建WebSocket服务器
-const wss = new WebSocketServer({ server: httpServer, maxPayload: 64 * 1024 });
+const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD });
 
 const heartbeatInterval = setInterval(() => {
   wss.clients.forEach(client => {
@@ -51,7 +55,7 @@ const heartbeatInterval = setInterval(() => {
     client.isAlive = false;
     client.ping();
   });
-}, 30000);
+}, HEARTBEAT_INTERVAL);
 
 // ============================================================
 // WebSocket 连接处理
@@ -59,6 +63,7 @@ const heartbeatInterval = setInterval(() => {
 wss.on('connection', (ws, req) => {
   let currentRoom = null;
   let userId = null;
+  let notifiedDisconnect = false;
 
   console.log(`[连接] 新客户端连接: ${req.socket.remoteAddress}`);
   ws.isAlive = true;
@@ -92,6 +97,7 @@ wss.on('connection', (ws, req) => {
       // ---------- 离开房间 ----------
       case 'leave':
         handleLeave(ws, msg, currentRoom, userId, () => {
+          notifiedDisconnect = true; // 已主动通知对方，close 事件不再重复发送
           currentRoom = null;
           userId = null;
         });
@@ -104,11 +110,12 @@ wss.on('connection', (ws, req) => {
 
   // 客户端断开连接时的清理
   ws.on('close', () => {
-    if (currentRoom && userId) {
+    if (currentRoom && userId && !notifiedDisconnect) {
+      notifiedDisconnect = true;
       console.log(`[断开] 用户 ${userId} 离开房间 ${currentRoom}`);
       leaveRoom(currentRoom, userId, ws);
 
-      // 通知房间内其他用户
+      // 通知房间内其他用户（仅发送一次）
       const members = rooms.get(currentRoom);
       if (members) {
         members.forEach(member => {
@@ -163,11 +170,11 @@ function handleJoin(ws, msg, onJoined) {
     }
   }
 
-  // 房间人数上限为2
-  if (members && members.length >= 2) {
+  // 房间人数上限为 MAX_ROOM_SIZE
+  if (members && members.length >= MAX_ROOM_SIZE) {
     ws.send(JSON.stringify({
       type: 'error',
-      msg: '房间已满（最多2人），请换一个房间号'
+      msg: `房间已满（最多 ${MAX_ROOM_SIZE} 人），请换一个房间号`
     }));
     return;
   }
@@ -229,7 +236,7 @@ function handleMessage(ws, msg, room, userId) {
   let delivered = false;
   for (const member of members) {
     if (member.id !== userId) {
-      if (member.ws.readyState === 1) { // WebSocket.OPEN
+      if (member.ws.readyState === WS_READY_OPEN) {
         member.ws.send(msgToSend);
         delivered = true;
       }
@@ -252,11 +259,11 @@ function handleLeave(ws, msg, room, userId, onLeft) {
     console.log(`[离开] 用户 ${userId} 主动离开房间 ${room}`);
     leaveRoom(room, userId, ws);
 
-    // 通知对方
+    // 通知对方（主动离开时发送，close 事件不再重复发送）
     const members = rooms.get(room);
     if (members) {
       members.forEach(member => {
-        if (member.id !== userId && member.ws.readyState === 1) {
+        if (member.id !== userId && member.ws.readyState === WS_READY_OPEN) {
           member.ws.send(JSON.stringify({
             type: 'peer-disconnected',
             id: userId
