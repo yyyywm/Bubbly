@@ -27,6 +27,11 @@ const path = require('path');
 // 多实例运行时隔离用户数据目录，避免缓存冲突
 app.setPath('userData', path.join(app.getPath('userData'), `instance-${process.pid}`));
 
+// 透明窗口关键：让合成器使用完全透明的后备层，避免拖拽时白底闪烁
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('transparent-window-background', '#00000000');
+}
+
 let mainWindow = null;
 let tray = null;
 let isDragging = false;
@@ -64,15 +69,17 @@ function createWindow() {
     focusable: true,
     hasShadow: false,
     resizable: false,
-    titleBarStyle: 'hidden',
     show: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
+
+  // 透明窗口关键：确保背景色为完全透明，避免拖拽时白底残留
+  mainWindow.setBackgroundColor('#00000000');
 
   Menu.setApplicationMenu(null);
 
