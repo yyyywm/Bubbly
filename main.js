@@ -177,36 +177,25 @@ ipcMain.on('show-pet-context-menu', (event) => {
 // 桌宠 JS 拖拽：由主进程负责绝对定位，彻底规避反馈循环。
 // 渲染器上报"鼠标按下点的渲染器坐标"(拖拽全程为常量)，
 // 主进程用屏幕坐标(screen.getCursorScreenPoint)减去该常量点，直接得到窗口应处的绝对位置。
+//
+// 关键修复 — 用 setBounds() 同时锁定"位置 + 尺寸"：
+//   在 Windows dpr≠1(如 1.25)下，单纯 setPosition() 会让 Windows 先按物理像素取整再转回 DIP，
+//   每次拖拽都会让窗口尺寸产生 ±1 DIP 的漂移；累积拖拽后窗口会明显变大，
+//   覆盖到本该可点的后方区域（"窗口延展变大、点不到后面"）。
+//   setBounds 在同一调用里固定 width/height，Windows 无机会重算尺寸，彻底消除尺寸漂移。
+//
 // 由于定位基于稳定的屏幕坐标(以显示器为原点，setPosition 不会改变它)，
-// setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环，
-// 解决任何 DPI 下"拖拽时窗口右边/下方空白延展变大"的问题。
-// 诊断：追踪拖拽全程，定位"窗口变大"是尺寸变化、位置漂移还是无环
-let diag = { n: 0, maxDrift: 0, sizes: new Set(), started: false };
+// setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环。
 ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
   const { x, y } = screen.getCursorScreenPoint();
-  const winX = Math.round(x - clickX), winY = Math.round(y - clickY);
-  mainWindow.setPosition(winX, winY);
-  if (!diag.started) {
-    diag.started = true;
-    console.log('[DRAG-START] dpr=' + screen.getPrimaryDisplay().scaleFactor);
-  }
-  diag.n++;
-  const b = mainWindow.getBounds();
-  // drift: 我们刚设置的 winX/winY 与 getBounds 实测的差异(0=无环稳定)
-  const drift = Math.abs(winX - b.x) + Math.abs(winY - b.y);
-  if (drift > diag.maxDrift) diag.maxDrift = drift;
-  const sz = Math.round(b.width) + 'x' + Math.round(b.height);
-  if (!diag.sizes.has(sz)) {
-    diag.sizes.add(sz);
-    console.log('[SIZE-SEEN] window size = ' + sz);
-  }
-  if (diag.n % 40 === 0) {
-    console.log('[DRAG] n=' + diag.n + ' win=(' + Math.round(b.x) + ',' + Math.round(b.y) +
-      ') size=' + sz + ' cursor=(' + Math.round(x) + ',' + Math.round(y) +
-      ') drift=' + drift + ' maxDrift=' + diag.maxDrift);
-  }
+  mainWindow.setBounds({
+    x: Math.round(x - clickX),
+    y: Math.round(y - clickY),
+    width: 280,
+    height: 300
+  });
 });
 
 // ============================================================
