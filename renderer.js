@@ -367,9 +367,8 @@ function endDrag() {
   window.electronAPI.dragEnd();
 
   if (petArea.style.display === 'block') {
-    // 拖拽结束后通知主进程刷新宠物区域坐标
-    const petSize = Math.round(150 * (petScale || 100) / 100);
-    window.electronAPI.petRegionUpdated(petSize, petSize);
+    // 主进程轮询循环自动从 mainWindow.getPosition() 读取窗口位置
+    // petW/petH 已在 applyScale 时更新，无需再次通知
   } else {
     window.electronAPI.disablePenetrating();
   }
