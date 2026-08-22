@@ -99,8 +99,9 @@ node test-server.js
 | `enter-pet-mode` | - | 切换到桌宠模式 |
 | `leave-pet-mode` | - | 返回设置面板模式 |
 | `pet-input-visible` | `true/false` | 输入面板显示/隐藏 |
+| `show-pet-context-menu` | `x, y` | 桌宠右键菜单 |
 
-> 与旧版相比，IPC 通道从 8 条精简为 3 条。
+> 与旧版相比，IPC 通道从 8 条精简为 4 条。
 > 拖拽完全由 CSS `-webkit-app-region: drag` 原生处理，无需 IPC。
 
 ## 拖拽与穿透方案
@@ -125,11 +126,10 @@ CSS: #setup-drag { -webkit-app-region: drag }  → 标题栏可拖拽
 ```
 setIgnoreMouseEvents(false)                  → 整窗口接收鼠标事件
 CSS:
-  #pet-drag-zone    { -webkit-app-region: drag }  → 桌宠顶部拖拽把手（覆盖耳朵）
+  #pet-container    { -webkit-app-region: drag }  → 整个桌宠可拖拽窗口
   #bubble-container { -webkit-app-region: drag }  → 气泡区可拖拽窗口
   #status-dot       { -webkit-app-region: drag }  → 状态灯可拖拽窗口
   #reconnect-hint   { -webkit-app-region: drag }  → 提示可拖拽窗口
-  #pet-body         { -webkit-app-region: no-drag }  → 禁止拖拽，确保双击触发
 ```
 
 **桌宠模式（有输入框）**
@@ -141,10 +141,11 @@ CSS:
   #input-panel .send-btn { -webkit-app-region: no-drag }  → 按钮不能拖拽
 ```
 
-> **注意**：`#pet-body` 使用 `-webkit-app-region: no-drag` 而非 `drag`，
-> 因为在无边框窗口中，`dblclick` 在 drag 区域会被系统拦截（Windows 触发最大化），
-> 导致 `dblclick` 事件无法到达 DOM。使用 `no-drag` 后双击事件正常触发。
-> 窗口拖拽通过 `#pet-drag-zone`（桌宠顶部覆盖耳朵的透明区域）、气泡、状态灯、重连提示完成。
+> **关键说明**：整个桌宠区域使用 `-webkit-app-region: drag`，
+> `resizable: false` + `alwaysOnTop: true` 防止 OS 拦截双击用于最大化。
+> - 单击拖拽 → 移动窗口
+> - 双击桌宠 → `dblclick` 事件正常触发 → 弹出输入框
+> - 右键桌宠 → `contextmenu` 事件正常触发 → 弹出菜单
 
 ### 区域更新时机
 

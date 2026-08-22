@@ -325,6 +325,37 @@ petContainer.addEventListener('dblclick', (e) => {
   showInput();
 });
 
+// 右键桌宠 → 弹出上下文菜单
+petContainer.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  window.electronAPI.showPetContextMenu(e.screenX, e.screenY);
+});
+
+// 菜单项 IPC 回调：发送消息
+window.electronAPI.onPetMenuSendMessage(() => {
+  if (isConnected) showInput();
+});
+
+// 菜单项 IPC 回调：返回设置
+window.electronAPI.onPetMenuLeavePetMode(() => {
+  if (isConnected) {
+    ws.close();
+    isConnected = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectVisible = false;
+    window.electronAPI.leavePetMode();
+    petArea.style.display = 'none';
+    setupPanel.style.display = 'flex';
+    setStatus('已断开连接', '#f44336');
+    btnConnect.disabled = false;
+    hideInput();
+    messageQueue.length = 0;
+    isShowing = false;
+    bubbleContainer.innerHTML = '';
+  }
+});
+
 inputPanel.addEventListener('focusout', (e) => {
   if (inputPanel.contains(e.relatedTarget)) return;
   hideInput();

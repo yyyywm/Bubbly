@@ -156,6 +156,29 @@ ipcMain.on('pet-input-visible', (event, visible) => {
   console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
+ipcMain.on('show-pet-context-menu', (event, x, y) => {
+  if (!mainWindow) return;
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '💌 发送消息', click: () => {
+        event.sender.send('pet-menu-send-message');
+      }
+    },
+    { type: 'separator' },
+    { label: '🏠 返回设置', click: () => {
+        event.sender.send('pet-menu-leave-pet-mode');
+      }
+    },
+    { label: '🔄 重启应用', click: () => {
+        app.relaunch();
+        app.exit(0);
+      }
+    },
+    { label: '❌ 退出', click: () => app.quit() }
+  ]);
+  contextMenu.popup({ x: Math.round(x), y: Math.round(y) });
+  console.log('[MAIN] pet context menu at (' + x + ', ' + y + ')');
+});
+
 // ============================================================
 // 应用生命周期
 // ============================================================
