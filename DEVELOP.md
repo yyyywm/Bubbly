@@ -108,86 +108,78 @@ node test-server.js
 
 ### 核心机制
 
-使用 Electron `BrowserWindow.setDraggableRegions()` 定义"标题栏区域"：
+使用 CSS `-webkit-app-region: drag` 标记可拖拽区域 + `setIgnoreMouseEvents` 控制穿透：
 
-- **可拖拽区域**：按住鼠标即可原生拖拽窗口，由 OS 直接处理
-- **非可拖拽区域 + `setIgnoreMouseEvents(true, {forward: true})`**：鼠标事件透传到底层窗口
+- **`-webkit-app-region: drag`**：该元素成为窗口"标题栏"，按住左键即可原生拖拽窗口，由 OS 直接处理
+- **`setIgnoreMouseEvents(false)`**：窗口接收鼠标事件，`-webkit-app-region: drag` 区域可拖拽，其余区域正常交互
+- 无边框窗口下 `dblclick`、`contextmenu` 等事件不受 `-webkit-app-region: drag` 影响，正常触发
 
-### 两种模式
+### 三种模式
 
 **设置面板模式**
 ```
-setIgnoreMouseEvents(false)                 → 整窗口可交互
-setDraggableRegions([{x:0, y:0, w:280, h:45}])  → 仅标题栏可拖拽
+setIgnoreMouseEvents(false)                  → 整窗口可交互
+CSS: #setup-drag { -webkit-app-region: drag }  → 标题栏可拖拽
 ```
 
 **桌宠模式（无输入框）**
 ```
-setIgnoreMouseEvents(true, {forward: true})  → 默认穿透
-setDraggableRegions([
-  {bubble区域},   // 可点击 + 可拖拽
-  {dot区域},      // 双击返回设置
-  {pet区域},      // 右键拖拽 + 双击发送
-  {hint区域}      // 双击重连
-])
+setIgnoreMouseEvents(false)                  → 整窗口接收鼠标事件
+CSS:
+  #pet-container  { -webkit-app-region: drag }  → 左键拖拽窗口
+  #bubble-container { -webkit-app-region: drag }  → 左键拖拽窗口
+  #status-dot     { -webkit-app-region: drag }  → 左键拖拽窗口
+  #reconnect-hint { -webkit-app-region: drag }  → 左键拖拽窗口
+  其余区域自然无响应（透明背景）
 ```
 
 **桌宠模式（有输入框）**
 ```
-setIgnoreMouseEvents(false)                 → 整窗口可交互
-setDraggableRegions([{x:0, y:0, w:280, h:300}])  → 整窗口可拖拽
-```
-
-### 区域坐标计算
-
-所有区域坐标基于窗口坐标（280×300），使用常量计算，与 CSS 布局保持同步：
-
-```js
-// 桌宠：bottom: 20px, left: 50%
-const petX = (WIN_W - petW) / 2;
-const petY = WIN_H - PET_OFFSET_BOTTOM - petH;
-
-// 气泡容器：top 由 scale 动态计算
-const bubbleTop = max(10, WIN_H - 220 - petH - 12);
-const bubbleX = (WIN_W - 220) / 2;
+setIgnoreMouseEvents(false)                  → 整窗口可交互
+CSS:
+  #input-panel  { -webkit-app-region: drag }  → 面板区域可拖拽
+  #input-panel input { -webkit-app-region: no-drag }  → 输入框不能拖拽
+  #input-panel .send-btn { -webkit-app-region: no-drag }  → 按钮不能拖拽
 ```
 
 ### 区域更新时机
 
-`setDraggableRegions()` 在以下时机调用：
+`setIgnoreMouseEvents()` 在以下时机调用：
 
-| 时机 | 触发 | 影响 |
+| 时机 | 触发 | 状态 |
 |------|------|------|
-| 页面加载完成 | `did-finish-load` | 初始化为设置模式 |
-| 连接成功 | `enter-pet-mode` | 切换为桌宠模式 |
-| 返回设置 | `leave-pet-mode` | 恢复设置模式 |
-| 缩放变更 | `pet-region-updated` | 重新计算桌宠区域 |
-| 输入面板显隐 | `pet-input-visible` | 切换交互模式 |
+| 页面加载完成 | `did-finish-load` | 设置模式，`ignore: false` |
+| 连接成功 | `enter-pet-mode` | 桌宠模式，`ignore: false` |
+| 返回设置 | `leave-pet-mode` | 设置模式，`ignore: false` |
+| 输入面板显隐 | `pet-input-visible` | 桌宠模式，`ignore: false` |
+
+> 区域坐标由 CSS 自动计算，不依赖主进程坐标更新。
 
 ### 与旧方案对比
 
-| 维度 | 旧方案（鼠标轮询） | 新方案（setDraggableRegions） |
+| 维度 | 旧方案（鼠标轮询） | 新方案（-webkit-app-region） |
 |------|------|------|
 | 拖拽方式 | IPC dragMove → setPosition | OS 原生拖拽 |
-| 区域穿透 | 50ms timer 轮询 | 原生区域判定 |
-| CPU 开销 | 持续 timer + 频繁 IPC | 仅在区域变化时更新 |
-| 首次拖拽延迟 | CPU 冷启动 → 100ms+ 延迟 | 无延迟（无 timer 唤醒） |
-| 代码量 | main.js ~150 行 + renderer.js ~150 行 | main.js ~60 行 + renderer.js ~0 行 |
-| IPC 通道 | 8 条 | 4 条 |
+| 区域穿透 | 50ms timer 轮询 | CSS 原生标记 |
+| CPU 开销 | 持续 timer + 频繁 IPC | 零 timer，零 IPC |
+| 首次拖拽延迟 | CPU 冷启动 → 100ms+ 延迟 | 无延迟 |
+| 代码量 | main.js ~200 行 + renderer.js ~150 行 | main.js ~60 行 + renderer.js ~0 行 |
+| IPC 通道 | 8 条 | 3 条 |
+| Electron 兼容性 | setDraggableRegions 部分版本不支持 | -webkit-app-region 自 v2 起支持 |
 
 ## 常见问题
 
 **Q: 设置面板不可点击？**
 → 检查主进程是否设置了 `alwaysOnTop: true`
-→ 检查主进程 `did-finish-load` 是否调用了 `updateDraggableRegions()`
+→ 检查主进程 `did-finish-load` 是否调用了 `updateMousePenetration()`
 
 **Q: 桌宠无法拖拽？**
-→ 确认 `enter-pet-mode` IPC 到达主进程
-→ 检查 `updateDraggableRegions()` 中桌宠区域坐标是否正确
+→ 确认 `#pet-container` 有 `-webkit-app-region: drag`
+→ 确认主进程 `enter-pet-mode` IPC 已收到
 
 **Q: 双击桌宠无法弹出输入框？**
-→ `setDraggableRegions` 会消费部分鼠标事件，检查是否需要调整区域大小
-→ 尝试将拖拽区域缩小 2px 让出双击空间
+→ 在无边框窗口下 `dblclick` 不受 `-webkit-app-region: drag` 影响，应正常工作
+→ 检查 `petContainer` 的 `dblclick` 事件监听是否正常
 
 **Q: 消息气泡不显示？**
 → 检查 `renderer.js` 中 `enqueueBubble()` → `showNextBubble()` 调用链
