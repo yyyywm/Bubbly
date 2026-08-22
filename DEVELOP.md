@@ -4,9 +4,8 @@
 
 - [开发环境](#开发环境)
 - [架构概览](#架构概览)
-- [开发工作流](#开发工作流)
 - [IPC 通信协议](#ipc-通信协议)
-- [区域穿透实现](#区域穿透实现)
+- [拖拽与穿透方案](#拖拽与穿透方案)
 - [常见问题](#常见问题)
 
 ## 开发环境
@@ -54,14 +53,16 @@ node test-server.js
 │  │   │   │ 消息气泡队列                    │   │   │ │
 │  │   │   └───────────────────────────────┘   │   │ │
 │  │   └──────────────────────────────────────┘   │ │
-│  │              ↕ IPC (preload.js)              │ │
-│  │   setNonPenetratingRegion()                  │ │
-│  │   dragStart / dragMove / dragEnd()          │ │
+│  │              ↕ IPC (preload.js, 仅 4 条)     │ │
+│  │   enterPetMode / leavePetMode               │ │
+│  │   petRegionUpdated / petInputVisible        │ │
 │  └─────────────────────────────────────────────┘ │
-│              ↕                                    │
-│  Tray Menu (菜单栏心形图标)                        │
+│  │  setDraggableRegions() → 原生拖拽 + 区域穿透 │ │
+│  │  无轮询，无 timer，无 IPC drag 通信          │ │
+│  │              ↕                                    │
+│  │  Tray Menu (菜单栏心形图标)                        │
 └──────────────────────────────────────────────────┘
-              ↕ WebSocket (ws://localhost:8080)
+               ↕ WebSocket (ws://localhost:8080)
 ┌──────────────────────────────────────────────────┐
 │  WebSocket 服务器 (server.js)                      │
 │  ┌─────────────────────────────────────────────┐ │
@@ -85,101 +86,108 @@ node test-server.js
 
 ```
 用户双击桌宠
-  → showInput() → 输入框显示
+  → showInput() → petInputVisible(true) → 主进程切换为全交互
     → 用户输入 → Enter
       → sendMessage() → WebSocket → 服务器 → 对方
-        → hideInput() → 输入框隐藏
-          → updateRegions() → 恢复区域穿透
+        → hideInput() → petInputVisible(false) → 主进程恢复区域穿透
 ```
 
-## 开发工作流
-
-### 1. 修改后重启
-
-```bash
-# 停止所有进程
-pkill -f "electron /Users/ywm/Desktop/vibecoding/pet"
-pkill -f "node /Users/ywm/Desktop/vibecoding/pet/server.js"
-
-# 启动
-node server.js &
-./node_modules/.bin/electron .
-```
-
-### 2. 调试技巧
-
-- **主进程日志**：终端 `npm start` 的输出
-- **渲染进程日志**：`renderer.js` 中 `console.log` → 主进程 `console-message` 事件转发到终端
-- **DevTools**：安装 Electron DevTools Extension 后启用
-
-### 3. 验证顺序
-
-1. 启动服务器 → 终端显示启动成功
-2. 启动两个客户端 → 设置面板可见
-3. 双方填相同房间号 → 点击连接
-4. 设置面板消失，桌宠出现
-5. 双击桌宠 → 输入框弹出
-6. 发送消息 → 对方桌宠头顶气泡弹出
-
-## IPC 通信协议
-
-### 渲染进程 → 主进程
+## IPC 通信协议（渲染进程 → 主进程）
 
 | 通道 | 参数 | 用途 |
 |------|------|------|
-| `enable-penetrating` | - | 开启全屏穿透 |
-| `disable-penetrating` | - | 关闭穿透 |
-| `set-non-penetrating-region` | `[{x, y, width, height}]` | 设置区域穿透 |
-| `drag-start` | `screenX, screenY` | 拖拽开始 |
-| `drag-move` | `screenX, screenY` | 拖拽移动 |
-| `drag-end` | - | 拖拽结束 |
+| `enter-pet-mode` | - | 切换到桌宠模式（区域穿透） |
+| `leave-pet-mode` | - | 返回设置面板模式（全屏交互） |
+| `pet-region-updated` | `{petW, petH}` | 更新桌宠尺寸 → 重新计算拖拽区域 |
+| `pet-input-visible` | `true/false` | 输入面板显示/隐藏 → 切换交互模式 |
 
-### 区域穿透规则
+> 与旧版相比，IPC 通道从 8 条精简为 4 条。
+> 拖拽完全由 `setDraggableRegions()` 原生处理，无需 IPC。
 
+## 拖拽与穿透方案
+
+### 核心机制
+
+使用 Electron `BrowserWindow.setDraggableRegions()` 定义"标题栏区域"：
+
+- **可拖拽区域**：按住鼠标即可原生拖拽窗口，由 OS 直接处理
+- **非可拖拽区域 + `setIgnoreMouseEvents(true, {forward: true})`**：鼠标事件透传到底层窗口
+
+### 两种模式
+
+**设置面板模式**
 ```
-设置面板模式 → 不穿透（所有元素可点击）
-桌宠模式     → 区域穿透（仅桌宠/气泡/输入框可点击）
-  - 桌宠显示中 → enable-penetrating
-  - 气泡显示中 → set-non-penetrating-region([pet, bubble])
-  - 输入框显示中 → set-non-penetrating-region([pet, input])
-  - 重连提示显示中 → set-non-penetrating-region([pet, hint])
+setIgnoreMouseEvents(false)                 → 整窗口可交互
+setDraggableRegions([{x:0, y:0, w:280, h:45}])  → 仅标题栏可拖拽
 ```
 
-## 区域穿透实现
+**桌宠模式（无输入框）**
+```
+setIgnoreMouseEvents(true, {forward: true})  → 默认穿透
+setDraggableRegions([
+  {bubble区域},   // 可点击 + 可拖拽
+  {dot区域},      // 双击返回设置
+  {pet区域},      // 右键拖拽 + 双击发送
+  {hint区域}      // 双击重连
+])
+```
 
-`setNonPenetratingRegion()` 接收窗口坐标下的非穿透矩形数组：
+**桌宠模式（有输入框）**
+```
+setIgnoreMouseEvents(false)                 → 整窗口可交互
+setDraggableRegions([{x:0, y:0, w:280, h:300}])  → 整窗口可拖拽
+```
+
+### 区域坐标计算
+
+所有区域坐标基于窗口坐标（280×300），使用常量计算，与 CSS 布局保持同步：
 
 ```js
-const regions = [];
-// 桌宠本体
-const petRect = petContainer.getBoundingClientRect();
-regions.push({ x, y, width, height });
+// 桌宠：bottom: 20px, left: 50%
+const petX = (WIN_W - petW) / 2;
+const petY = WIN_H - PET_OFFSET_BOTTOM - petH;
 
-// 气泡（显示时）
-if (isShowing) {
-  const rect = bubbleContainer.getBoundingClientRect();
-  regions.push({ x, y, width, height });
-}
-
-// 传给主进程
-window.electronAPI.setNonPenetratingRegion(regions);
+// 气泡容器：top 由 scale 动态计算
+const bubbleTop = max(10, WIN_H - 220 - petH - 12);
+const bubbleX = (WIN_W - 220) / 2;
 ```
 
-### 坐标计算
+### 区域更新时机
 
-- `getBoundingClientRect()` 返回**视口坐标**
-- 视口坐标 = 窗口坐标（因为窗口大小 = 视口大小）
-- 主进程 `region` 参数需要整数坐标
+`setDraggableRegions()` 在以下时机调用：
 
-### 常见问题
+| 时机 | 触发 | 影响 |
+|------|------|------|
+| 页面加载完成 | `did-finish-load` | 初始化为设置模式 |
+| 连接成功 | `enter-pet-mode` | 切换为桌宠模式 |
+| 返回设置 | `leave-pet-mode` | 恢复设置模式 |
+| 缩放变更 | `pet-region-updated` | 重新计算桌宠区域 |
+| 输入面板显隐 | `pet-input-visible` | 切换交互模式 |
+
+### 与旧方案对比
+
+| 维度 | 旧方案（鼠标轮询） | 新方案（setDraggableRegions） |
+|------|------|------|
+| 拖拽方式 | IPC dragMove → setPosition | OS 原生拖拽 |
+| 区域穿透 | 50ms timer 轮询 | 原生区域判定 |
+| CPU 开销 | 持续 timer + 频繁 IPC | 仅在区域变化时更新 |
+| 首次拖拽延迟 | CPU 冷启动 → 100ms+ 延迟 | 无延迟（无 timer 唤醒） |
+| 代码量 | main.js ~150 行 + renderer.js ~150 行 | main.js ~60 行 + renderer.js ~0 行 |
+| IPC 通道 | 8 条 | 4 条 |
+
+## 常见问题
 
 **Q: 设置面板不可点击？**
-→ 检查主进程是否设置了 `alwaysOnTop: true`（缺少此设置窗口会被遮挡）
-→ 检查 `renderer.js` 末尾是否调用了 `setSetupModePenetration()`
+→ 检查主进程是否设置了 `alwaysOnTop: true`
+→ 检查主进程 `did-finish-load` 是否调用了 `updateDraggableRegions()`
 
 **Q: 桌宠无法拖拽？**
-→ 拖拽时确保 `disable-penetrating()` 被调用
-→ 检查 `drag-start` IPC 是否到达主进程
+→ 确认 `enter-pet-mode` IPC 到达主进程
+→ 检查 `updateDraggableRegions()` 中桌宠区域坐标是否正确
+
+**Q: 双击桌宠无法弹出输入框？**
+→ `setDraggableRegions` 会消费部分鼠标事件，检查是否需要调整区域大小
+→ 尝试将拖拽区域缩小 2px 让出双击空间
 
 **Q: 消息气泡不显示？**
 → 检查 `renderer.js` 中 `enqueueBubble()` → `showNextBubble()` 调用链
