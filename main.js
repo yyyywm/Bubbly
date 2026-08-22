@@ -71,6 +71,21 @@ let inputFullWindow = false;  // 输入面板是否可见
 // 鼠标轮询定时器
 let mousePollTimer = null;
 
+// 缓存当前 ignore 状态，相同状态下跳过 setIgnoreMouseEvents 调用
+// setIgnoreMouseEvents 每次都会走 Electron→Chromium→DWM 完整链路，
+// 频繁相同调用会在 CPU 降频后产生明显的冷启动延迟
+let lastIgnoreState = { ignore: true, forward: true };
+
+// 安全设置 ignore 状态：仅当状态实际变化时才调用
+// 相同状态下跳过，避免频繁 IPC 调用导致 CPU 冷启动延迟
+function setIgnoreIfChanged(ignore, forward) {
+  if (lastIgnoreState.ignore === ignore && lastIgnoreState.forward === forward) {
+    return; // 状态未变，跳过
+  }
+  lastIgnoreState = { ignore, forward };
+  mainWindow.setIgnoreMouseEvents(ignore, { forward });
+}
+
 // 鼠标轮询：每 MOUSE_POLL_INTERVAL ms 检查光标是否在可交互区域内
 function startMousePolling() {
   stopMousePolling();
@@ -81,7 +96,7 @@ function startMousePolling() {
 
     // 输入面板可见时，整个窗口可点
     if (inputFullWindow) {
-      mainWindow.setIgnoreMouseEvents(false, { forward: false });
+      setIgnoreIfChanged(false, false);
       return;
     }
 
@@ -93,9 +108,9 @@ function startMousePolling() {
                     screenY >= petTop  && screenY <= petTop  + petH + PET_PADDING * 2;
 
     if (overPet) {
-      mainWindow.setIgnoreMouseEvents(false, { forward: false });
+      setIgnoreIfChanged(false, false);
     } else {
-      mainWindow.setIgnoreMouseEvents(true, { forward: true });
+      setIgnoreIfChanged(true, true);
     }
   }, MOUSE_POLL_INTERVAL);
 }
@@ -164,10 +179,21 @@ function createWindow() {
   }
 }
 
+// 预热 DWM 合成器：提前调用一次 setPosition，避免首次拖拽时 CPU 冷启动延迟
+function warmupDragPath() {
+  if (!mainWindow) return;
+  const [x, y] = mainWindow.getPosition();
+  mainWindow.setPosition(x, y);
+  console.log('[MAIN] drag path warmed up');
+}
+
 // 切换到桌宠模式
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
+  // 重置 ignore 状态缓存，确保首次轮询生效
+  lastIgnoreState = { ignore: null, forward: null };
+  warmupDragPath();
   startMousePolling();
   console.log('[MAIN] enter-pet-mode');
 });
@@ -176,7 +202,7 @@ ipcMain.on('leave-pet-mode', () => {
   if (!mainWindow) return;
   petMode = false;
   stopMousePolling();
-  mainWindow.setIgnoreMouseEvents(false, { forward: false });
+  setIgnoreIfChanged(false, false);
   console.log('[MAIN] leave-pet-mode');
 });
 
@@ -196,13 +222,13 @@ ipcMain.on('pet-input-visible', (event, visible) => {
 ipcMain.on('enable-penetrating', () => {
   if (!mainWindow || !petMode) return;
   console.log('[MAIN] enable-penetrating');
-  mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  setIgnoreIfChanged(true, true);
 });
 
 ipcMain.on('disable-penetrating', () => {
   if (!mainWindow) return;
   console.log('[MAIN] disable-penetrating');
-  mainWindow.setIgnoreMouseEvents(false, { forward: false });
+  setIgnoreIfChanged(false, false);
 });
 
 ipcMain.on('set-ignore-mouse-events', (event, opts) => {
