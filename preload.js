@@ -10,7 +10,7 @@
  *
  * 拖拽策略:
  *   - 设置面板/气泡/状态灯/输入面板 → CSS -webkit-app-region: drag 原生拖拽
- *   - 桌宠区域 → JS mousedown/mousemove/mouseup + IPC drag-move
+ *   - 桌宠区域 → JS mousedown/mousemove/mouseup + IPC drag-move(传偏移，主进程用屏幕坐标定位)
  */
 
 const { contextBridge, ipcRenderer } = require('electron');

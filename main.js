@@ -27,7 +27,7 @@
 
 const {
   app, BrowserWindow, ipcMain, Menu, Tray,
-  nativeImage
+  nativeImage, screen
 } = require('electron');
 const path = require('path');
 
@@ -173,14 +173,19 @@ ipcMain.on('show-pet-context-menu', (event) => {
   console.log('[MAIN] pet context menu shown');
 });
 
-// 桌宠 JS 拖拽：接收相对移动量，累加到窗口当前位置
-ipcMain.on('drag-move', (event, dx, dy) => {
+// 桌宠 JS 拖拽：由主进程负责绝对定位，彻底规避反馈循环。
+// 渲染器上报"鼠标按下点的渲染器坐标"(拖拽全程为常量)，
+// 主进程用屏幕坐标(screen.getCursorScreenPoint)减去该常量点，直接得到窗口应处的绝对位置。
+// 由于定位基于稳定的屏幕坐标(以显示器为原点，setPosition 不会改变它)，
+// setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环，
+// 解决任何 DPI 下"拖拽时窗口右边/下方空白延展变大"的问题。
+ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
-  const [x, y] = mainWindow.getPosition();
-  mainWindow.setPosition(
-    Math.round(x + dx),
-    Math.round(y + dy)
-  );
+  if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
+  // 无标题栏窗口：窗口原点 == 内容原点，渲染器坐标(视口)与屏幕坐标同量纲(同 scale)，
+  // 可直接相减。clickX/clickY 是渲染器上报的"按下点"坐标，为常量。
+  const { x, y } = screen.getCursorScreenPoint();
+  mainWindow.setPosition(Math.round(x - clickX), Math.round(y - clickY));
 });
 
 // ============================================================
