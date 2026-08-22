@@ -360,8 +360,9 @@ function scheduleReconnect() {
 // ============================================================
 
 let isDragging = false;
-let lastDragTime = 0;
-const DRAG_THROTTLE_MS = 16; // 约 60fps，与显示器刷新率同步，避免 33fps 导致的视觉卡顿
+let dragPending = false;
+let lastDragX = 0;
+let lastDragY = 0;
 
 function endDrag() {
   if (!isDragging) return;
@@ -406,11 +407,19 @@ petContainer.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
-  // 节流：16ms ≈ 60fps，与屏幕刷新同步，保证平滑拖拽
-  const now = performance.now();
-  if (now - lastDragTime < DRAG_THROTTLE_MS) return;
-  lastDragTime = now;
-  window.electronAPI.dragMove(e.screenX, e.screenY);
+  // 缓存最新位置，由 requestAnimationFrame 在下一次刷新帧批量推送
+  // 避免高频 IPC 调用导致的卡顿，同时保证与显示器刷新同步（vsync）
+  lastDragX = e.screenX;
+  lastDragY = e.screenY;
+  if (!dragPending) {
+    dragPending = true;
+    requestAnimationFrame(() => {
+      dragPending = false;
+      if (isDragging) {
+        window.electronAPI.dragMove(lastDragX, lastDragY);
+      }
+    });
+  }
 });
 
 // mouseup 始终结束拖拽，不做 button 校验
