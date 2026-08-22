@@ -334,8 +334,8 @@ petContainer.addEventListener('dblclick', (e) => {
 petContainer.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   e.stopPropagation();
-  // 坐标由主进程通过 screen.getCursorScreenPoint() 直接读取，
-  // 完全绕过 DPI 缩放下的坐标系不一致问题
+  // 坐标由 Menu.popup({window}) 默认光标位置自动处理，
+  // 无需在进程间传递，避免 DPI 缩放下的坐标系不一致问题
   window.electronAPI.showPetContextMenu();
 });
 
