@@ -63,23 +63,20 @@ function createWindow() {
     height: 300,
     x: 400,
     y: 300,
-    transparent: true,
+    transparent: false,
     frame: false,
     alwaysOnTop: false,
     focusable: true,
     hasShadow: false,
     resizable: false,
     show: true,
-    backgroundColor: '#00000000',
+    backgroundColor: '#ffffff00',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
-
-  // 透明窗口关键：确保背景色为完全透明，避免拖拽时白底残留
-  mainWindow.setBackgroundColor('#00000000');
 
   Menu.setApplicationMenu(null);
 
