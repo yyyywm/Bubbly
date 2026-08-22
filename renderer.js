@@ -3,8 +3,8 @@
  *  Bubbly - 渲染进程（页面逻辑）
  * ============================================================
  *
- *  区域穿透与拖拽完全由主进程通过 setDraggableRegions 原生管理，
- *  渲染进程仅需在模式切换时通知主进程。
+ *  区域穿透与拖拽完全由 CSS -webkit-app-region: drag 原生管理，
+ *  渲染进程仅需在模式切换时通知主进程切换鼠标穿透状态。
  * ============================================================
  */
 
@@ -101,8 +101,7 @@ function applyScale(scale) {
   const dotTop = Math.max(10, 300 - 220 - petSize - 12) + 120 + 6;
   statusDot.style.top = dotTop + 'px';
 
-  // 通知主进程更新拖拽区域
-  window.electronAPI.petRegionUpdated(petSize, petSize);
+  // 区域穿透和拖拽由 CSS -webkit-app-region 原生管理，无需通知主进程
   saveSettings();
 }
 

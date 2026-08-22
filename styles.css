@@ -46,6 +46,7 @@ html, body {
   padding: 8px 0 6px;
   cursor: grab;
   flex-shrink: 0;
+  -webkit-app-region: drag;  /* 标题栏原生拖拽 */
 }
 
 #setup-drag:active {
@@ -215,6 +216,7 @@ html, body {
   height: 150px;
   pointer-events: auto;
   cursor: grab;
+  -webkit-app-region: drag;  /* 原生窗口拖拽 */
 }
 
 #pet-body {
@@ -381,6 +383,7 @@ html, body {
   justify-content: center;
   pointer-events: none;
   overflow: visible;
+  -webkit-app-region: drag;  /* 气泡区域可拖拽窗口 */
 }
 
 .bubble {
@@ -443,6 +446,7 @@ html, body {
   cursor: default;
   z-index: 50;
   pointer-events: auto;
+  -webkit-app-region: drag;  /* 输入面板区域可拖拽窗口 */
 }
 
 #input-panel .input-row {
@@ -463,6 +467,7 @@ html, body {
   font-size: 12px;
   cursor: text;
   border-radius: 8px;
+  -webkit-app-region: no-drag;  /* 输入框不能拖拽窗口 */
 }
 
 #input-panel .send-btn {
@@ -474,6 +479,7 @@ html, body {
   font-size: 11px;
   font-weight: bold;
   cursor: pointer;
+  -webkit-app-region: no-drag;  /* 发送按钮不能拖拽窗口 */
 }
 
 /* ============================================================
@@ -491,6 +497,7 @@ html, body {
   transition: background 0.3s;
   pointer-events: auto;
   cursor: pointer;
+  -webkit-app-region: drag;  /* 状态灯区域可拖拽窗口 */
 }
 
 #status-dot.online {
@@ -515,4 +522,5 @@ html, body {
   cursor: default;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
+  -webkit-app-region: drag;  /* 重连提示区域可拖拽窗口 */
 }

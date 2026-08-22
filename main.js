@@ -5,22 +5,22 @@
  *
  *  核心功能:
  *    1. 创建无边框透明置顶窗口
- *    2. 区域穿透：通过 setDraggableRegions 定义可交互区域，
- *       其余区域原生穿透，无需轮询
- *    3. 系统托盘图标
- *    4. 隐藏菜单栏与 Dock 图标
- *    5. 原生窗口拖拽（Electron 自动处理，无需 IPC）
+ *    2. 区域穿透：setIgnoreMouseEvents + CSS -webkit-app-region
+ *    3. 原生窗口拖拽：CSS -webkit-app-region: drag，OS 直接处理
+ *    4. 系统托盘图标
+ *    5. 隐藏菜单栏与 Dock 图标
  *
- *  拖拽方案:
- *    使用 BrowserWindow.setDraggableRegions() 定义"标题栏区域"，
- *    在该区域内按住鼠标即可原生拖拽窗口，由 OS 直接处理。
- *    无需 mousePollTimer，无需 IPC drag 通信。
+ *  方案说明:
+ *    设置面板模式 → setIgnoreMouseEvents(false)，整窗口交互，标题栏可拖拽
+ *    桌宠模式    → setIgnoreMouseEvents(true, forward)，空白区域穿透
+ *                  -webkit-app-region: drag 标记桌宠/气泡/状态灯/提示
+ *                  使这些区域支持原生拖拽和点击
+ *    输入面板    → setIgnoreMouseEvents(false)，整窗口交互
  *
- *  IPC 通信（仅 4 条）:
- *    - enter-pet-mode       → 切换到桌宠模式（区域穿透）
- *    - leave-pet-mode       → 返回设置面板模式（全屏交互）
- *    - pet-region-updated   → 更新桌宠尺寸 → 重新计算区域
- *    - pet-input-visible    → 输入面板显示/隐藏 → 切换交互模式
+ *  IPC 通信（仅 3 条）:
+ *    - enter-pet-mode    → 进入桌宠模式
+ *    - leave-pet-mode    → 返回设置面板
+ *    - pet-input-visible → 输入面板显示/隐藏
  * ============================================================
  */
 
@@ -29,21 +29,6 @@ const {
   nativeImage
 } = require('electron');
 const path = require('path');
-
-// ============================================================
-// 常量
-// ============================================================
-const WIN_W = 280;
-const WIN_H = 300;
-const PET_OFFSET_BOTTOM = 20;    // 桌宠距离窗口底部
-const BUBBLE_CONTAINER_W = 220;  // 气泡容器宽度
-const BUBBLE_CONTAINER_H = 120;  // 气泡容器高度
-const BUBBLE_GAP = 12;           // 气泡与桌宠间距
-const DOT_SIZE = 6;              // 状态灯尺寸
-const DOT_GAP = 6;               // 气泡到状态灯的额外间距
-const HINT_W = 130;              // 重连提示宽度
-const HINT_H = 30;               // 重连提示高度
-const HINT_TOP = 100;            // 重连提示 Y 坐标
 
 // ============================================================
 // 初始化
@@ -60,56 +45,25 @@ if (process.platform === 'win32') {
 let mainWindow = null;
 let tray = null;
 let petMode = false;
-let petW = 150;
-let petH = 150;
 let inputPanelVisible = false;
 
 // ============================================================
-// 拖拽区域管理
+// 鼠标穿透模式切换
 // ============================================================
-function updateDraggableRegions() {
+function updateMousePenetration() {
   if (!mainWindow) return;
 
-  // 设置面板模式：仅标题栏区域可拖拽，其余区域可交互（输入框/按钮正常响应）
   if (!petMode) {
+    // 设置面板模式 → 整窗口可交互，标题栏可拖拽
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
-    // 标题栏高度（对应 CSS: #setup-drag padding + content ≈ 45px）
-    mainWindow.setDraggableRegions([{ x: 0, y: 0, width: WIN_W, height: 45 }]);
-    return;
-  }
-
-  // 输入面板可见：整窗口可交互、可拖拽
-  if (inputPanelVisible) {
+  } else if (inputPanelVisible) {
+    // 输入面板可见 → 整窗口可交互
     mainWindow.setIgnoreMouseEvents(false, { forward: false });
-    mainWindow.setDraggableRegions([{ x: 0, y: 0, width: WIN_W, height: WIN_H }]);
-    return;
+  } else {
+    // 桌宠模式 → 整窗口接收鼠标事件（透明区域自然忽略），
+    // 交互区域通过 CSS -webkit-app-region: drag 支持原生拖拽
+    mainWindow.setIgnoreMouseEvents(false, { forward: false });
   }
-
-  // 桌宠模式：默认穿透，仅交互区域可点击/拖拽
-  mainWindow.setIgnoreMouseEvents(true, { forward: true });
-
-  const regions = [];
-
-  // 气泡容器区域
-  const bubbleTop = Math.round(Math.max(10, WIN_H - BUBBLE_CONTAINER_H - petH - BUBBLE_GAP));
-  const bubbleX   = Math.round((WIN_W - BUBBLE_CONTAINER_W) / 2);
-  regions.push({ x: bubbleX, y: bubbleTop, width: BUBBLE_CONTAINER_W, height: BUBBLE_CONTAINER_H });
-
-  // 状态灯区域
-  const dotY = Math.round(bubbleTop + BUBBLE_CONTAINER_H + DOT_GAP);
-  const dotX = Math.round((WIN_W - DOT_SIZE) / 2);
-  regions.push({ x: dotX, y: dotY, width: DOT_SIZE, height: DOT_SIZE });
-
-  // 桌宠区域
-  const petX = Math.round((WIN_W - petW) / 2);
-  const petY = Math.round(WIN_H - PET_OFFSET_BOTTOM - petH);
-  regions.push({ x: petX, y: petY, width: petW, height: petH });
-
-  // 重连提示区域（始终定义，不可见时由 CSS display:none 自然不响应）
-  const hintX = Math.round((WIN_W - HINT_W) / 2);
-  regions.push({ x: hintX, y: HINT_TOP, width: HINT_W, height: HINT_H });
-
-  mainWindow.setDraggableRegions(regions);
 }
 
 // ============================================================
@@ -165,7 +119,7 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[MAIN] did-finish-load');
     mainWindow.setAlwaysOnTop(true, 'normal');
-    updateDraggableRegions();
+    updateMousePenetration();
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
@@ -183,7 +137,7 @@ ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
   inputPanelVisible = false;
-  updateDraggableRegions();
+  updateMousePenetration();
   console.log('[MAIN] enter-pet-mode');
 });
 
@@ -191,22 +145,14 @@ ipcMain.on('leave-pet-mode', () => {
   if (!mainWindow) return;
   petMode = false;
   inputPanelVisible = false;
-  updateDraggableRegions();
+  updateMousePenetration();
   console.log('[MAIN] leave-pet-mode');
-});
-
-ipcMain.on('pet-region-updated', (event, { petW: newW, petH: newH }) => {
-  if (!mainWindow || !petMode) return;
-  petW = newW;
-  petH = newH;
-  updateDraggableRegions();
-  console.log('[MAIN] petRegionUpdated: petW=' + petW + ' petH=' + petH);
 });
 
 ipcMain.on('pet-input-visible', (event, visible) => {
   if (!mainWindow || !petMode) return;
   inputPanelVisible = !!visible;
-  updateDraggableRegions();
+  updateMousePenetration();
   console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
