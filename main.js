@@ -27,7 +27,7 @@
 
 const {
   app, BrowserWindow, ipcMain, Menu, Tray,
-  nativeImage, screen
+  nativeImage
 } = require('electron');
 const path = require('path');
 
@@ -159,11 +159,6 @@ ipcMain.on('pet-input-visible', (event, visible) => {
 
 ipcMain.on('show-pet-context-menu', (event) => {
   if (!mainWindow) return;
-  // 直接读取系统光标位置，完全绕过坐标系转换问题
-  const cursorPos = screen.getCursorScreenPoint();
-  const screenX = cursorPos.x;
-  const screenY = cursorPos.y;
-
   const contextMenu = Menu.buildFromTemplate([
     { label: '💌 发送消息', click: () => {
         event.sender.send('pet-menu-send-message');
@@ -181,8 +176,10 @@ ipcMain.on('show-pet-context-menu', (event) => {
     },
     { label: '❌ 退出', click: () => app.quit() }
   ]);
-  contextMenu.popup({ x: screenX, y: screenY });
-  console.log('[MAIN] pet context menu at (' + screenX + ', ' + screenY + ')');
+  // 不传 x/y，让 Menu.popup 使用默认光标位置，
+  // 彻底规避 Electron 中各 API 坐标空间不一致的 bug
+  contextMenu.popup({ window: mainWindow });
+  console.log('[MAIN] pet context menu shown');
 });
 
 // 桌宠 JS 拖拽：接收相对移动量，累加到窗口当前位置
