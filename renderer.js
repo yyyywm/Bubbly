@@ -387,6 +387,10 @@ let wasDragging = false;
 // 让 clickClient 这个点始终跟光标对齐，实现"按在哪、就在哪拖"的自然手感。
 let dragClickX = 0;
 let dragClickY = 0;
+// 节流：每 FRAME_THROTTLE_MS 才上报一次，避免鼠标快速移动时每秒 150–300 次
+// 跨进程 IPC 导致拖拽卡顿。因为 click 点是常量，丢帧不会造成定位偏差。
+const FRAME_THROTTLE_MS = 16;
+let lastDragSend = 0;
 
 petContainer.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;  // 仅左键拖拽
@@ -404,7 +408,10 @@ petContainer.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
   wasDragging = true;
-  // 上报按下的点（常量），主进程用屏幕坐标反算窗口绝对位置
+  // 节流上报：click 点是常量，丢帧不会造成定位偏差
+  const now = Date.now();
+  if (now - lastDragSend < FRAME_THROTTLE_MS) return;
+  lastDragSend = now;
   window.electronAPI.dragMove(dragClickX, dragClickY);
 });
 
