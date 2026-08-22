@@ -118,54 +118,64 @@ function updateRegions() {
 
   // 桌宠本体
   const petRect = petContainer.getBoundingClientRect();
-  regions.push({
-    x: Math.round(petRect.left),
-    y: Math.round(petRect.top),
-    width: Math.round(petRect.width),
-    height: Math.round(petRect.height)
-  });
+  if (petRect.width > 0 && petRect.height > 0) {
+    regions.push({
+      x: Math.round(petRect.left),
+      y: Math.round(petRect.top),
+      width: Math.round(petRect.width),
+      height: Math.round(petRect.height)
+    });
+  }
 
   // 气泡（显示时）
   if (isShowing) {
     const bubbleRect = bubbleContainer.getBoundingClientRect();
-    regions.push({
-      x: Math.round(bubbleRect.left),
-      y: Math.round(bubbleRect.top),
-      width: Math.round(bubbleRect.width),
-      height: Math.round(bubbleRect.height)
-    });
+    if (bubbleRect.width > 0 && bubbleRect.height > 0) {
+      regions.push({
+        x: Math.round(bubbleRect.left),
+        y: Math.round(bubbleRect.top),
+        width: Math.round(bubbleRect.width),
+        height: Math.round(bubbleRect.height)
+      });
+    }
   }
 
   // 输入面板（显示时）
   if (inputVisible) {
     const inputRect = inputPanel.getBoundingClientRect();
-    regions.push({
-      x: Math.round(inputRect.left),
-      y: Math.round(inputRect.top),
-      width: Math.round(inputRect.width),
-      height: Math.round(inputRect.height)
-    });
+    if (inputRect.width > 0 && inputRect.height > 0) {
+      regions.push({
+        x: Math.round(inputRect.left),
+        y: Math.round(inputRect.top),
+        width: Math.round(inputRect.width),
+        height: Math.round(inputRect.height)
+      });
+    }
   }
 
   // 重连提示（显示时）
   if (reconnectVisible) {
     const connRect = reconnectHint.getBoundingClientRect();
-    regions.push({
-      x: Math.round(connRect.left),
-      y: Math.round(connRect.top),
-      width: Math.round(connRect.width),
-      height: Math.round(connRect.height)
-    });
+    if (connRect.width > 0 && connRect.height > 0) {
+      regions.push({
+        x: Math.round(connRect.left),
+        y: Math.round(connRect.top),
+        width: Math.round(connRect.width),
+        height: Math.round(connRect.height)
+      });
+    }
   }
 
   // 状态指示灯
   const dotRect = statusDot.getBoundingClientRect();
-  regions.push({
-    x: Math.round(dotRect.left) - 6,
-    y: Math.round(dotRect.top) - 6,
-    width: Math.round(dotRect.width) + 12,
-    height: Math.round(dotRect.height) + 12
-  });
+  if (dotRect.width > 0 && dotRect.height > 0) {
+    regions.push({
+      x: Math.round(dotRect.left) - 6,
+      y: Math.round(dotRect.top) - 6,
+      width: Math.round(dotRect.width) + 12,
+      height: Math.round(dotRect.height) + 12
+    });
+  }
 
   window.electronAPI.setNonPenetratingRegion(regions);
 }
@@ -214,7 +224,7 @@ function connect() {
       console.log('WebSocket 已断开');
       isConnected = false;
       updateStatusUI();
-      if (petArea.style.display !== 'none') {
+      if (petArea.style.display === 'block') {
         showReconnectHint();
         updateRegions();
         scheduleReconnect();
@@ -223,7 +233,7 @@ function connect() {
 
     ws.onerror = () => {
       console.error('WebSocket 错误');
-      if (petArea.style.display !== 'none') {
+      if (petArea.style.display === 'block') {
         showReconnectHint();
         updateRegions();
       } else {
@@ -244,13 +254,16 @@ function handleMessage(data) {
     case 'welcome':
       console.log('加入房间成功:', data.room);
       isConnected = true;
-      // 切换到桌宠模式：窗口变透明、置顶
+      // 切换到桌宠模式
       window.electronAPI.enterPetMode();
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
-      updateStatusUI();
       applyScale(petScale);
-      updateRegions();
+      // 用 requestAnimationFrame 确保 display:block 后的布局完成再计算区域
+      requestAnimationFrame(() => {
+        updateStatusUI();
+        updateRegions();
+      });
       break;
 
     case 'message':
@@ -375,7 +388,7 @@ function updateStatusUI() {
     reconnectHint.style.display = 'none';
     statusDot.className = 'offline';
   }
-  if (petArea.style.display !== 'none') {
+  if (petArea.style.display === 'block') {
     updateRegions();
   }
 }
@@ -407,7 +420,7 @@ function endDrag() {
   petContainer.style.cursor = 'default';
   window.electronAPI.dragEnd();
 
-  if (petArea.style.display !== 'none') {
+  if (petArea.style.display === 'block') {
     updateRegions();
   } else {
     window.electronAPI.disablePenetrating();
@@ -498,7 +511,7 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
     btn.classList.add('active');
     petScale = parseInt(btn.dataset.scale);
     saveSettings();
-    if (petArea.style.display !== 'none') {
+    if (petArea.style.display === 'block') {
       applyScale(petScale);
       updateRegions();
     }
