@@ -25,20 +25,21 @@ const statusDot     = document.getElementById('status-dot');
 const reconnectHint = document.getElementById('reconnect-hint');
 
 // ============================================================
-// 状态变量
+// 常量与状态
 // ============================================================
+const MAX_QUEUE_SIZE = 50;
+
 let ws = null;
 let isConnected = false;
-let isSending = false;
 let inputVisible = false;
 let reconnectTimer = null;
-const MAX_QUEUE_SIZE = 50;
-const messageQueue = [];
-let isShowing = false;
 let reconnectVisible = false;
+let currentRoom = '';
+let isShowing = false;
 let nickname = '';
 let petScale = 100;
 const userId = crypto.randomUUID();
+const messageQueue = [];
 
 // ============================================================
 // 加载保存的设置
@@ -49,7 +50,10 @@ function loadSettings() {
     if (saved) {
       const settings = JSON.parse(saved);
       if (settings.serverUrl) inpServer.value = settings.serverUrl;
-      if (settings.room) inpRoom.value = settings.room;
+      if (settings.room) {
+        inpRoom.value = settings.room;
+        currentRoom = settings.room;
+      }
       if (settings.nickname) inpNickname.value = settings.nickname;
       if (settings.scale) {
         petScale = settings.scale;
@@ -67,7 +71,7 @@ function saveSettings() {
   try {
     localStorage.setItem('bubbly_settings', JSON.stringify({
       serverUrl: inpServer.value,
-      room: inpRoom.value,
+      room: currentRoom,
       nickname: inpNickname.value,
       scale: petScale
     }));
@@ -115,9 +119,10 @@ function setSetupModePenetration() {
   window.electronAPI.disablePenetrating();
 }
 
-// 区域穿透由主进程鼠标轮询控制，renderer 无需处理
+// 区域穿透由主进程鼠标轮询控制，renderer 端无需额外操作
+// （保留函数作为未来扩展点）
 function updateRegions() {
-  // no-op：主进程通过 mousePollTimer 根据 petRegions 切换 setIgnoreMouseEvents
+  // 区域穿透完全由 main.js 的 startMousePolling() 管理
 }
 
 // ============================================================
@@ -140,6 +145,7 @@ function connect() {
   }
 
   nickname = inpNickname.value.trim() || userId;
+  currentRoom = room;
   saveSettings();
 
   setupStatus.textContent = '正在连接服务器…';
@@ -153,7 +159,7 @@ function connect() {
 
     ws.onopen = () => {
       console.log('WebSocket 已连接');
-      ws.send(JSON.stringify({ type: 'join', room, id: userId }));
+      ws.send(JSON.stringify({ type: 'join', room: currentRoom, id: userId }));
     };
 
     ws.onmessage = (event) => {
@@ -225,8 +231,8 @@ function handleMessage(data) {
       if (setupPanel.style.display !== 'none') {
         setupStatus.textContent = '⚠️ ' + data.msg;
         setupStatus.style.color = '#f44336';
+        btnConnect.disabled = false;
       }
-      btnConnect.disabled = false;
       break;
   }
 }
@@ -278,19 +284,17 @@ function showNextBubble() {
 // ============================================================
 
 function sendMessage() {
-  if (isSending) return;
   const text = msgInput.value.trim();
   if (!text) return;
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-  isSending = true;
   ws.send(JSON.stringify({
     type: 'message',
-    room: inpRoom.value.trim(),
+    room: currentRoom,
     id: userId,
     text: text
   }));
-  isSending = false;
+
   msgInput.value = '';
   hideInput();
 }
@@ -481,8 +485,8 @@ statusDot.addEventListener('dblclick', (e) => {
   if (isConnected) {
     ws.close();
     isConnected = false;
-    reconnectVisible = false;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectVisible = false;
     window.electronAPI.disablePenetrating();
     window.electronAPI.setIgnoreMouseEvents(false, false);
     window.electronAPI.leavePetMode();
@@ -496,8 +500,7 @@ statusDot.addEventListener('dblclick', (e) => {
     isShowing = false;
     bubbleContainer.innerHTML = '';
   } else {
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     connect();
   }
 });
