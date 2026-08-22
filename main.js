@@ -20,7 +20,7 @@
 
 const {
   app, BrowserWindow, ipcMain, Menu, Tray,
-  nativeImage
+  nativeImage, screen
 } = require('electron');
 const path = require('path');
 
@@ -37,6 +37,48 @@ let tray = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let petMode = false;
+let petScale = 100;
+let petRegions = [];          // 宠物模式下所有可交互区域的屏幕坐标
+let mousePollTimer = null;    // 鼠标轮询定时器
+
+// 鼠标轮询：每 50ms 检查光标是否在可交互区域内
+// 在区域上方 → 捕获鼠标事件（窗口接收点击）
+// 在区域下方 → 穿透到桌面（窗口忽略鼠标）
+// 原理：setIgnoreMouseEvents(true, {forward:true}) 让浏览器收不到事件，
+//       但通过轮询 OS 光标位置 + 切换 setIgnoreMouseEvents 状态，
+//       实现"只在可交互区域捕获事件"的效果。
+function startMousePolling() {
+  stopMousePolling();
+  mousePollTimer = setInterval(() => {
+    if (!petMode || !mainWindow) return;
+    if (!mainWindow.isVisible()) return;
+    if (isDragging) {
+      // 拖拽中保持捕获
+      return;
+    }
+    const [screenX, screenY] = screen.getCursorScreenPoint();
+    let overRegion = false;
+    for (const r of petRegions) {
+      if (screenX >= r.x && screenX <= r.x + r.w &&
+          screenY >= r.y && screenY <= r.y + r.h) {
+        overRegion = true;
+        break;
+      }
+    }
+    if (overRegion) {
+      mainWindow.setIgnoreMouseEvents(false, { forward: false });
+    } else {
+      mainWindow.setIgnoreMouseEvents(true, { forward: true });
+    }
+  }, 50);
+}
+
+function stopMousePolling() {
+  if (mousePollTimer) {
+    clearInterval(mousePollTimer);
+    mousePollTimer = null;
+  }
+}
 
 function createTrayIcon() {
   const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
@@ -99,7 +141,39 @@ function createWindow() {
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
+  startMousePolling();
   console.log('[MAIN] enter-pet-mode');
+});
+
+ipcMain.on('leave-pet-mode', () => {
+  if (!mainWindow) return;
+  petMode = false;
+  stopMousePolling();
+  mainWindow.setIgnoreMouseEvents(false, { forward: false });
+  console.log('[MAIN] leave-pet-mode');
+});
+
+ipcMain.on('pet-region-updated', (event, { petW, petH }) => {
+  if (!mainWindow || !petMode) return;
+  petScale = petScale || 100;
+  const [winX, winY] = mainWindow.getPosition();
+  const WIN_W = 280, WIN_H = 300;
+  // 桌宠区域
+  const petLeft = winX + (WIN_W - petW) / 2 - 5;
+  const petTop  = winY + (WIN_H - 20 - petH) - 5;
+  petRegions = [
+    { x: Math.round(petLeft), y: Math.round(petTop), w: petW + 10, h: petH + 10 }
+  ];
+  console.log('[MAIN] petRegions:', JSON.stringify(petRegions));
+});
+
+ipcMain.on('pet-input-visible', (event, visible) => {
+  if (!mainWindow || !petMode) return;
+  if (visible) {
+    petRegions.push({ x: 0, y: 0, w: 280, h: 300 }); // 输入时整个窗口可点
+  } else {
+    petRegions = petRegions.slice(0, 1);
+  }
 });
 
 ipcMain.on('enable-penetrating', () => {
@@ -114,21 +188,10 @@ ipcMain.on('disable-penetrating', () => {
   mainWindow.setIgnoreMouseEvents(false, { forward: false });
 });
 
-ipcMain.on('set-non-penetrating-region', (event, regions) => {
+ipcMain.on('set-ignore-mouse-events', (event, opts) => {
   if (!mainWindow) return;
-  console.log('[MAIN] setNonPenRegion:', JSON.stringify(regions));
-  if (!regions || regions.length === 0) {
-    console.log('[MAIN] WARN: regions empty, falling back to disable-penetrating');
-    mainWindow.setIgnoreMouseEvents(false, { forward: false });
-  } else {
-    mainWindow.setIgnoreMouseEvents(true, {
-      forward: true,
-      region: regions.map(r => ({
-        x: Math.round(r.x), y: Math.round(r.y),
-        width: Math.round(r.width), height: Math.round(r.height)
-      }))
-    });
-  }
+  console.log('[MAIN] setIgnoreMouseEvents:', JSON.stringify(opts));
+  mainWindow.setIgnoreMouseEvents(!!opts.ignore, { forward: !!opts.forward });
 });
 
 ipcMain.on('drag-start', (event, screenX, screenY) => {
@@ -142,7 +205,20 @@ ipcMain.on('drag-start', (event, screenX, screenY) => {
 
 ipcMain.on('drag-move', (event, screenX, screenY) => {
   if (!mainWindow || !isDragging) return;
-  mainWindow.setPosition(Math.round(screenX - dragOffset.x), Math.round(screenY - dragOffset.y));
+  const newX = Math.round(screenX - dragOffset.x);
+  const newY = Math.round(screenY - dragOffset.y);
+  mainWindow.setPosition(newX, newY);
+  // 窗口位置变化后更新宠物区域坐标
+  if (petMode) {
+    const petW = Math.round(150 * (petScale || 100) / 100);
+    const petH = petW;
+    const WIN_W = 280, WIN_H = 300;
+    const petLeft = newX + (WIN_W - petW) / 2 - 5;
+    const petTop  = newY + (WIN_H - 20 - petH) - 5;
+    petRegions = [
+      { x: Math.round(petLeft), y: Math.round(petTop), w: petW + 10, h: petH + 10 }
+    ];
+  }
 });
 
 ipcMain.on('drag-end', () => {

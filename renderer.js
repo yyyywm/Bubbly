@@ -82,21 +82,21 @@ function saveSettings() {
 function applyScale(scale) {
   petScale = scale;
   const ratio = scale / 100;
-  const petSize = 150 * ratio;
+  const petSize = Math.round(150 * ratio);
 
-  // 桌宠本体缩放
   petBody.style.transform = `scale(${ratio})`;
   petBody.style.transformOrigin = 'center center';
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
 
-  // 气泡容器：紧贴桌宠头顶上方，留出 12px 间距
-  bubbleContainer.style.top = Math.max(10, 300 - 220 - Math.round(petSize) - 12) + 'px';
+  bubbleContainer.style.top = Math.max(10, 300 - 220 - petSize - 12) + 'px';
   bubbleContainer.style.height = '120px';
 
-  // 状态指示灯：紧贴气泡容器下方，留出 6px 间距
-  const dotTop = Math.max(10, 300 - 220 - Math.round(petSize) - 12) + 120 + 6;
+  const dotTop = Math.max(10, 300 - 220 - petSize - 12) + 120 + 6;
   statusDot.style.top = dotTop + 'px';
+
+  // 通知主进程更新宠物区域坐标（用于鼠标轮询穿透）
+  window.electronAPI.petRegionUpdated(petSize, petSize);
 
   saveSettings();
 }
@@ -115,10 +115,9 @@ function setSetupModePenetration() {
   window.electronAPI.disablePenetrating();
 }
 
-// 宠物模式：整个窗口不穿透，用 CSS pointer-events 精确控制交互区域
+// 区域穿透由主进程鼠标轮询控制，renderer 无需处理
 function updateRegions() {
-  window.electronAPI.disablePenetrating();
-  console.log('[REGIONS] 宠物模式：窗口全量可点，交互由 CSS pointer-events 控制');
+  // no-op：主进程通过 mousePollTimer 根据 petRegions 切换 setIgnoreMouseEvents
 }
 
 // ============================================================
@@ -307,7 +306,8 @@ function showInput() {
   msgInput.value = '';
   msgInput.focus();
   petArea.style.cursor = 'default';
-  updateRegions();
+  // 输入时整个窗口可点（输入面板可能在窗口任意位置）
+  window.electronAPI.petInputVisible(true);
 }
 
 function hideInput() {
@@ -316,7 +316,7 @@ function hideInput() {
   inputPanel.style.display = 'none';
   msgInput.blur();
   petArea.style.cursor = 'none';
-  updateRegions();
+  window.electronAPI.petInputVisible(false);
 }
 
 // ============================================================
@@ -356,6 +356,8 @@ function scheduleReconnect() {
 // ============================================================
 
 let isDragging = false;
+let lastDragTime = 0;
+const DRAG_THROTTLE_MS = 30; // 约 33fps，平衡流畅度与减少视觉 artifact
 
 function endDrag() {
   if (!isDragging) return;
@@ -374,14 +376,14 @@ function endDrag() {
 function startDrag(e, button) {
   e.preventDefault();
 
-  // 如果上次拖拽残留状态，先清理
   if (isDragging) endDrag();
 
   isDragging = true;
   document.body.style.cursor = 'grabbing';
   petContainer.style.cursor = 'grabbing';
 
-  window.electronAPI.disablePenetrating();
+  // 拖拽期间临时让窗口捕获鼠标事件（否则 setPosition 无效）
+  window.electronAPI.setIgnoreMouseEvents(false, false);
   window.electronAPI.dragStart(e.screenX, e.screenY);
 }
 
@@ -399,6 +401,10 @@ petContainer.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
+  // 节流：减少 setPosition 调用频率，避免透明窗口拖拽时的视觉拉伸
+  const now = Date.now();
+  if (now - lastDragTime < DRAG_THROTTLE_MS) return;
+  lastDragTime = now;
   window.electronAPI.dragMove(e.screenX, e.screenY);
 });
 
@@ -477,6 +483,8 @@ statusDot.addEventListener('dblclick', (e) => {
     reconnectVisible = false;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     window.electronAPI.disablePenetrating();
+    window.electronAPI.setIgnoreMouseEvents(false, false);
+    window.electronAPI.leavePetMode();
     petArea.style.display = 'none';
     setupPanel.style.display = 'flex';
     setupStatus.textContent = '已断开连接';
