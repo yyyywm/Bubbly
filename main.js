@@ -179,6 +179,16 @@ ipcMain.on('show-pet-context-menu', (event, x, y) => {
   console.log('[MAIN] pet context menu at (' + x + ', ' + y + ')');
 });
 
+// 桌宠 JS 拖拽：接收相对移动量，累加到窗口当前位置
+ipcMain.on('drag-move', (event, dx, dy) => {
+  if (!mainWindow) return;
+  const [x, y] = mainWindow.getPosition();
+  mainWindow.setPosition(
+    Math.round(x + dx),
+    Math.round(y + dy)
+  );
+});
+
 // ============================================================
 // 应用生命周期
 // ============================================================

@@ -316,6 +316,10 @@ function scheduleReconnect() {
 petContainer.addEventListener('dblclick', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  if (wasDragging) {
+    wasDragging = false;
+    return;  // 拖拽后双击不触发
+  }
   if (!isConnected) {
     if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -354,6 +358,38 @@ window.electronAPI.onPetMenuLeavePetMode(() => {
     isShowing = false;
     bubbleContainer.innerHTML = '';
   }
+});
+
+// ============================================================
+// 桌宠拖拽（JS 驱动，无 timer）
+// mousedown → 记录偏移 → mousemove 发送 IPC → mouseup 结束
+// -webkit-app-region: no-drag 确保 dblclick 正常触发
+// ============================================================
+let isDragging = false;
+let wasDragging = false;
+const DRAG_THRESHOLD = 2;  // 最小移动距离，过滤抖动
+
+petContainer.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;  // 仅左键拖拽
+  isDragging = true;
+  wasDragging = false;
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  // 跳过微小移动
+  if (Math.abs(e.movementX) < DRAG_THRESHOLD && Math.abs(e.movementY) < DRAG_THRESHOLD) return;
+  wasDragging = true;
+  // 将相对移动量发送给主进程
+  window.electronAPI.dragMove(e.movementX, e.movementY);
+});
+
+document.addEventListener('mouseup', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+  document.body.style.cursor = 'default';
+  petContainer.style.cursor = 'grab';
 });
 
 inputPanel.addEventListener('focusout', (e) => {

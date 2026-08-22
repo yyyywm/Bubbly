@@ -216,7 +216,7 @@ html, body {
   height: 150px;
   pointer-events: auto;
   cursor: grab;
-  -webkit-app-region: drag;  /* 整个桌宠区域可拖拽窗口 */
+  -webkit-app-region: no-drag;  /* 允许 dblclick 和 contextmenu 事件到达 DOM */
 }
 
 #pet-body {

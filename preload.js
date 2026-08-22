@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   leavePetMode: () => ipcRenderer.send('leave-pet-mode'),
   petInputVisible: (v) => ipcRenderer.send('pet-input-visible', v),
   showPetContextMenu: (x, y) => ipcRenderer.send('show-pet-context-menu', x, y),
+  dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
   onPetMenuSendMessage: (cb) => ipcRenderer.on('pet-menu-send-message', cb),
   onPetMenuLeavePetMode: (cb) => ipcRenderer.on('pet-menu-leave-pet-mode', cb)
 });

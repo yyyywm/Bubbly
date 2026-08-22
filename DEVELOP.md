@@ -100,9 +100,10 @@ node test-server.js
 | `leave-pet-mode` | - | 返回设置面板模式 |
 | `pet-input-visible` | `true/false` | 输入面板显示/隐藏 |
 | `show-pet-context-menu` | `x, y` | 桌宠右键菜单 |
+| `drag-move` | `dx, dy` | 桌宠 JS 拖拽（相对移动量） |
 
-> 与旧版相比，IPC 通道从 8 条精简为 4 条。
-> 拖拽完全由 CSS `-webkit-app-region: drag` 原生处理，无需 IPC。
+> 与旧版相比，IPC 通道从 8 条精简为 5 条。
+> 桌面区域拖拽由 CSS `-webkit-app-region: drag` 原生处理；桌宠区域因需同时支持双击和右键，使用 JS 拖拽。
 
 ## 拖拽与穿透方案
 
@@ -126,11 +127,15 @@ CSS: #setup-drag { -webkit-app-region: drag }  → 标题栏可拖拽
 ```
 setIgnoreMouseEvents(false)                  → 整窗口接收鼠标事件
 CSS:
-  #pet-container    { -webkit-app-region: drag }  → 整个桌宠可拖拽窗口
-  #bubble-container { -webkit-app-region: drag }  → 气泡区可拖拽窗口
-  #status-dot       { -webkit-app-region: drag }  → 状态灯可拖拽窗口
-  #reconnect-hint   { -webkit-app-region: drag }  → 提示可拖拽窗口
+  #pet-container    { -webkit-app-region: no-drag }  → 允许 dblclick/contextmenu
+  #bubble-container { -webkit-app-region: drag }     → 气泡区原生拖拽
+  #status-dot       { -webkit-app-region: drag }     → 状态灯原生拖拽
+  #reconnect-hint   { -webkit-app-region: drag }     → 提示原生拖拽
 ```
+
+> **桌宠区域**：CSS `no-drag` → 双击/右键事件到达 DOM
+> **桌宠拖拽**：JS `mousedown` → `mousemove` → `IPC drag-move(dx, dy)` → `setPosition`
+> **气泡/状态灯/提示**：CSS `drag` → OS 原生拖拽
 
 **桌宠模式（有输入框）**
 ```
@@ -141,11 +146,11 @@ CSS:
   #input-panel .send-btn { -webkit-app-region: no-drag }  → 按钮不能拖拽
 ```
 
-> **关键说明**：整个桌宠区域使用 `-webkit-app-region: drag`，
-> `resizable: false` + `alwaysOnTop: true` 防止 OS 拦截双击用于最大化。
-> - 单击拖拽 → 移动窗口
-> - 双击桌宠 → `dblclick` 事件正常触发 → 弹出输入框
-> - 右键桌宠 → `contextmenu` 事件正常触发 → 弹出菜单
+> **关键说明**：桌宠区域使用 `-webkit-app-region: no-drag` 而非 `drag`，
+> 因为在无边框窗口中，`dblclick` 在 drag 区域会被系统拦截（Windows 触发最大化），
+> 导致 `dblclick` 事件无法到达 DOM。桌宠拖拽改为 JS 驱动，`mousemove` 发送相对位移
+> `drag-move(dx, dy)` 给主进程，主进程 `setPosition` 累加移动量。
+> 气泡/状态灯/重连提示使用 CSS `drag` 原生拖拽。
 
 ### 区域更新时机
 
