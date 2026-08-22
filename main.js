@@ -37,35 +37,33 @@ let tray = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let petMode = false;
-let petScale = 100;
-let petRegions = [];          // 宠物模式下所有可交互区域的屏幕坐标
-let mousePollTimer = null;    // 鼠标轮询定时器
+let petW = 150;         // 桌宠宽度（屏幕坐标，跟随窗口移动）
+let petH = 150;         // 桌宠高度
+let inputFullWindow = false;  // 输入面板是否可见
 
 // 鼠标轮询：每 50ms 检查光标是否在可交互区域内
-// 在区域上方 → 捕获鼠标事件（窗口接收点击）
-// 在区域下方 → 穿透到桌面（窗口忽略鼠标）
-// 原理：setIgnoreMouseEvents(true, {forward:true}) 让浏览器收不到事件，
-//       但通过轮询 OS 光标位置 + 切换 setIgnoreMouseEvents 状态，
-//       实现"只在可交互区域捕获事件"的效果。
 function startMousePolling() {
   stopMousePolling();
   mousePollTimer = setInterval(() => {
-    if (!petMode || !mainWindow) return;
-    if (!mainWindow.isVisible()) return;
-    if (isDragging) {
-      // 拖拽中保持捕获
+    if (!petMode || !mainWindow || !mainWindow.isVisible()) return;
+    if (isDragging) return;
+    const [screenX, screenY] = screen.getCursorScreenPoint();
+
+    // 输入面板可见时，整个窗口可点
+    if (inputFullWindow) {
+      mainWindow.setIgnoreMouseEvents(false, { forward: false });
       return;
     }
-    const [screenX, screenY] = screen.getCursorScreenPoint();
-    let overRegion = false;
-    for (const r of petRegions) {
-      if (screenX >= r.x && screenX <= r.x + r.w &&
-          screenY >= r.y && screenY <= r.y + r.h) {
-        overRegion = true;
-        break;
-      }
-    }
-    if (overRegion) {
+
+    // 检查光标是否在桌宠区域
+    const [winX, winY] = mainWindow.getPosition();
+    const WIN_W = 280, WIN_H = 300;
+    const petLeft = winX + (WIN_W - petW) / 2 - 5;
+    const petTop  = winY + (WIN_H - 20 - petH) - 5;
+    const overPet = screenX >= petLeft && screenX <= petLeft + petW + 10 &&
+                    screenY >= petTop  && screenY <= petTop  + petH + 10;
+
+    if (overPet) {
       mainWindow.setIgnoreMouseEvents(false, { forward: false });
     } else {
       mainWindow.setIgnoreMouseEvents(true, { forward: true });
@@ -112,7 +110,7 @@ function createWindow() {
     hasShadow: false,
     resizable: false,
     show: true,
-    backgroundColor: '#ffffff00',
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -153,27 +151,17 @@ ipcMain.on('leave-pet-mode', () => {
   console.log('[MAIN] leave-pet-mode');
 });
 
-ipcMain.on('pet-region-updated', (event, { petW, petH }) => {
+ipcMain.on('pet-region-updated', (event, { petW: newW, petH: newH }) => {
   if (!mainWindow || !petMode) return;
-  petScale = petScale || 100;
-  const [winX, winY] = mainWindow.getPosition();
-  const WIN_W = 280, WIN_H = 300;
-  // 桌宠区域
-  const petLeft = winX + (WIN_W - petW) / 2 - 5;
-  const petTop  = winY + (WIN_H - 20 - petH) - 5;
-  petRegions = [
-    { x: Math.round(petLeft), y: Math.round(petTop), w: petW + 10, h: petH + 10 }
-  ];
-  console.log('[MAIN] petRegions:', JSON.stringify(petRegions));
+  petW = newW;
+  petH = newH;
+  console.log('[MAIN] petRegionUpdated: petW=' + petW + ' petH=' + petH);
 });
 
 ipcMain.on('pet-input-visible', (event, visible) => {
   if (!mainWindow || !petMode) return;
-  if (visible) {
-    petRegions.push({ x: 0, y: 0, w: 280, h: 300 }); // 输入时整个窗口可点
-  } else {
-    petRegions = petRegions.slice(0, 1);
-  }
+  inputFullWindow = !!visible;
+  console.log('[MAIN] petInputVisible: ' + inputFullWindow);
 });
 
 ipcMain.on('enable-penetrating', () => {
@@ -205,20 +193,7 @@ ipcMain.on('drag-start', (event, screenX, screenY) => {
 
 ipcMain.on('drag-move', (event, screenX, screenY) => {
   if (!mainWindow || !isDragging) return;
-  const newX = Math.round(screenX - dragOffset.x);
-  const newY = Math.round(screenY - dragOffset.y);
-  mainWindow.setPosition(newX, newY);
-  // 窗口位置变化后更新宠物区域坐标
-  if (petMode) {
-    const petW = Math.round(150 * (petScale || 100) / 100);
-    const petH = petW;
-    const WIN_W = 280, WIN_H = 300;
-    const petLeft = newX + (WIN_W - petW) / 2 - 5;
-    const petTop  = newY + (WIN_H - 20 - petH) - 5;
-    petRegions = [
-      { x: Math.round(petLeft), y: Math.round(petTop), w: petW + 10, h: petH + 10 }
-    ];
-  }
+  mainWindow.setPosition(Math.round(screenX - dragOffset.x), Math.round(screenY - dragOffset.y));
 });
 
 ipcMain.on('drag-end', () => {
