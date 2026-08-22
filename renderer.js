@@ -360,9 +360,11 @@ function scheduleReconnect() {
 // ============================================================
 
 let isDragging = false;
-let dragPending = false;
 let lastDragX = 0;
 let lastDragY = 0;
+
+// 最小移动距离（像素），低于此值跳过 IPC 调用，消除静态抖动与过度 IPC 开销
+const MIN_DRAG_DISTANCE = 2;
 
 function endDrag() {
   if (!isDragging) return;
@@ -407,19 +409,17 @@ petContainer.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return;
-  // 缓存最新位置，由 requestAnimationFrame 在下一次刷新帧批量推送
-  // 避免高频 IPC 调用导致的卡顿，同时保证与显示器刷新同步（vsync）
+
+  // 跳过微小移动（< MIN_DRAG_DISTANCE 像素），避免静态抖动和无效 IPC
+  const dx = e.screenX - lastDragX;
+  const dy = e.screenY - lastDragY;
+  if (Math.abs(dx) < MIN_DRAG_DISTANCE && Math.abs(dy) < MIN_DRAG_DISTANCE) return;
+
   lastDragX = e.screenX;
   lastDragY = e.screenY;
-  if (!dragPending) {
-    dragPending = true;
-    requestAnimationFrame(() => {
-      dragPending = false;
-      if (isDragging) {
-        window.electronAPI.dragMove(lastDragX, lastDragY);
-      }
-    });
-  }
+
+  // 直接调用 setPosition，不做任何节流或排队——鼠标一动窗口立即响应
+  window.electronAPI.dragMove(e.screenX, e.screenY);
 });
 
 // mouseup 始终结束拖拽，不做 button 校验
