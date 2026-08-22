@@ -59,12 +59,14 @@ pet/
 ├── server.js        # WebSocket 信令服务器（房间配对、消息广播）
 ├── main.js          # Electron 主进程（窗口管理、IPC、系统托盘）
 ├── preload.js       # 主进程与渲染进程的安全通信桥梁
-├── index.html       # 桌宠 UI（CSS 渲染，含动画）
-├── renderer.js      # 页面逻辑（WebSocket、气泡队列、区域穿透、缩放）
+├── index.html       # 桌宠 UI（结构，CSS 已提取到外部文件）
+├── styles.css       # 桌宠样式与动画
+├── renderer.js      # 页面逻辑（WebSocket、气泡队列、缩放）
 ├── package.json     # 项目配置与启动脚本
 ├── test-server.js   # 8 项自动化测试
 ├── demo-chat.js     # 双向通信实时演示
-└── README.md        # 本文件
+├── README.md        # 本文件
+└── DEVELOP.md       # 开发指南
 ```
 
 ## 🚀 快速启动

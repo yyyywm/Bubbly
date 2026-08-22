@@ -40,7 +40,9 @@
     "files": [
       "main.js",
       "renderer.js",
+      "preload.js",
       "index.html",
+      "styles.css",
       "package.json"
     ]
   }
