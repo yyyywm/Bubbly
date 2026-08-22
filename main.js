@@ -180,25 +180,32 @@ ipcMain.on('show-pet-context-menu', (event) => {
 // 由于定位基于稳定的屏幕坐标(以显示器为原点，setPosition 不会改变它)，
 // setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环，
 // 解决任何 DPI 下"拖拽时窗口右边/下方空白延展变大"的问题。
-let diagShown = false;
+// 诊断：追踪拖拽全程，定位"窗口变大"是尺寸变化、位置漂移还是无环
+let diag = { n: 0, maxDrift: 0, sizes: new Set(), started: false };
 ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
   const { x, y } = screen.getCursorScreenPoint();
-  mainWindow.setPosition(Math.round(x - clickX), Math.round(y - clickY));
-  // 诊断：仅在首次触发时输出，定位"窗口变大"是尺寸还是位置漂移
-  if (!diagShown) {
-    diagShown = true;
-    const dpr = screen.getPrimaryDisplay().scaleFactor;
-    const b = mainWindow.getBounds();
-    console.log('=== 诊断: 请拖拽后把下面输出发给我 ===');
-    console.log('[1] scaleFactor(你的 DPI 缩放) = ' + dpr);
-    console.log('[2] 窗口尺寸(w x h) = ' + b.width + ' x ' + b.height + '  <-- 拖拽后请再看是否变过');
-    console.log('[3] 窗口左上角(x,y) = ' + Math.round(b.x) + ',' + Math.round(b.y));
-    console.log('[4] 屏幕光标坐标 = ' + Math.round(x) + ',' + Math.round(y));
-    console.log('[5] 渲染器上报按下点 = ' + clickX + ',' + clickY);
-    console.log('[6] 计算出的新窗口位置 = ' + Math.round(x - clickX) + ',' + Math.round(y - clickY));
-    console.log('=== 请拖一次鼠标,再看 devtools console,把 [1]-[6] 和拖后窗口x,y、w,h 告诉我 ===');
+  const winX = Math.round(x - clickX), winY = Math.round(y - clickY);
+  mainWindow.setPosition(winX, winY);
+  if (!diag.started) {
+    diag.started = true;
+    console.log('[DRAG-START] dpr=' + screen.getPrimaryDisplay().scaleFactor);
+  }
+  diag.n++;
+  const b = mainWindow.getBounds();
+  // drift: 我们刚设置的 winX/winY 与 getBounds 实测的差异(0=无环稳定)
+  const drift = Math.abs(winX - b.x) + Math.abs(winY - b.y);
+  if (drift > diag.maxDrift) diag.maxDrift = drift;
+  const sz = Math.round(b.width) + 'x' + Math.round(b.height);
+  if (!diag.sizes.has(sz)) {
+    diag.sizes.add(sz);
+    console.log('[SIZE-SEEN] window size = ' + sz);
+  }
+  if (diag.n % 40 === 0) {
+    console.log('[DRAG] n=' + diag.n + ' win=(' + Math.round(b.x) + ',' + Math.round(b.y) +
+      ') size=' + sz + ' cursor=(' + Math.round(x) + ',' + Math.round(y) +
+      ') drift=' + drift + ' maxDrift=' + diag.maxDrift);
   }
 });
 
