@@ -16,6 +16,11 @@ const setupPanel     = document.getElementById('setup-panel');
 const petArea        = document.getElementById('pet-area');
 const petContainer   = document.getElementById('pet-container');
 const petBody        = document.getElementById('pet-body');
+const petImage       = document.getElementById('pet-image');
+const defaultPreview = document.getElementById('default-preview');
+const messagePreview = document.getElementById('message-preview');
+const fileDefault    = document.getElementById('file-default');
+const fileMessage    = document.getElementById('file-message');
 const bubbleContainer = document.getElementById('bubble-container');
 const inputPanel     = document.getElementById('input-panel');
 const msgInput       = document.getElementById('msg-input');
@@ -44,6 +49,7 @@ let currentRoom = '';
 let isShowing = false;
 let nickname = '';
 let petScale = 100;
+let customImages = { default: null, message: null };
 
 // ============================================================
 // 持久化设置
@@ -80,6 +86,127 @@ function saveSettings() {
     }));
   } catch (e) {
     console.warn('保存设置失败:', e);
+  }
+}
+
+// ============================================================
+// 自定义图片管理
+// ============================================================
+function loadCustomImages() {
+  try {
+    const saved = localStorage.getItem('bubbly_images');
+    if (!saved) return;
+    const s = JSON.parse(saved);
+    if (s.default) customImages['default'] = s.default;
+    if (s.message) customImages['message'] = s.message;
+    updateImagePreviews();
+  } catch (e) {
+    console.warn('加载自定义图片失败:', e);
+  }
+}
+
+function saveCustomImages() {
+  try {
+    localStorage.setItem('bubbly_images', JSON.stringify(customImages));
+  } catch (e) {
+    console.warn('保存自定义图片失败:', e);
+    // localStorage 空间不足时清除最大项
+    if (e instanceof QuotaExceededError) {
+      if (customImages['default'] && customImages['message']) {
+        const dLen = customImages['default'].length;
+        const mLen = customImages['message'].length;
+        if (dLen > mLen) {
+          customImages['default'] = null;
+        } else {
+          customImages['message'] = null;
+        }
+        updateImagePreviews();
+        try { localStorage.setItem('bubbly_images', JSON.stringify(customImages)); }
+        catch (_) { console.warn('localStorage 已满，请清除图片后重试'); }
+      }
+    }
+  }
+}
+
+function updateImagePreviews() {
+  if (defaultPreview && customImages['default']) {
+    defaultPreview.classList.add('has-image');
+    let img = defaultPreview.querySelector('img');
+    if (!img) { img = document.createElement('img'); defaultPreview.appendChild(img); }
+    img.src = customImages['default'];
+  } else if (defaultPreview) {
+    defaultPreview.classList.remove('has-image');
+    const img = defaultPreview.querySelector('img');
+    if (img) img.remove();
+  }
+
+  if (messagePreview && customImages['message']) {
+    messagePreview.classList.add('has-image');
+    let img = messagePreview.querySelector('img');
+    if (!img) { img = document.createElement('img'); messagePreview.appendChild(img); }
+    img.src = customImages['message'];
+  } else if (messagePreview) {
+    messagePreview.classList.remove('has-image');
+    const img = messagePreview.querySelector('img');
+    if (img) img.remove();
+  }
+}
+
+function updatePetDisplay() {
+  if (!petBody || !petImage) return;
+
+  if (customImages['default']) {
+    petBody.classList.add('hidden');
+    petImage.classList.add('visible');
+    petImage.src = customImages['default'];
+  } else {
+    petBody.classList.remove('hidden');
+    petImage.classList.remove('visible');
+  }
+}
+
+function switchPetImage(action) {
+  if (!customImages['default']) return;  // CSS 桌宠模式，无需切换
+
+  if (action === 'message' && customImages['message']) {
+    petImage.src = customImages['message'];
+  } else if (action === 'default') {
+    petImage.src = customImages['default'];
+  }
+}
+
+function handleImageUpload(target, file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    setStatus('⚠️ 请选择图片文件', '#f44336');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    setStatus('⚠️ 图片文件不能超过 2MB', '#f44336');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    customImages[target] = e.target.result;
+    saveCustomImages();
+    updateImagePreviews();
+    if (petArea && petArea.style.display === 'block') {
+      updatePetDisplay();
+    }
+  };
+  reader.onerror = () => {
+    setStatus('⚠️ 图片读取失败', '#f44336');
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetImage(target) {
+  customImages[target] = null;
+  saveCustomImages();
+  updateImagePreviews();
+  if (petArea && petArea.style.display === 'block') {
+    updatePetDisplay();
   }
 }
 
@@ -175,6 +302,7 @@ function handleMessage(data) {
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
       applyScale(petScale);
+      updatePetDisplay();
       updateStatusUI();
       break;
 
@@ -215,6 +343,7 @@ function showNextBubble() {
 
   isShowing = true;
   const text = messageQueue.shift();
+  switchPetImage('message');
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
@@ -233,6 +362,7 @@ function showNextBubble() {
   setTimeout(() => {
     bubble.remove();
     isShowing = false;
+    if (messageQueue.length === 0) switchPetImage('default');
     showNextBubble();
   }, 2850);
 }
@@ -480,8 +610,45 @@ statusDot.addEventListener('dblclick', (e) => {
 });
 
 // ============================================================
+// 图片上传事件
+// ============================================================
+document.querySelectorAll('.image-btn.upload').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.target;
+    const input = target === 'default' ? fileDefault : fileMessage;
+    input.click();
+  });
+});
+
+document.querySelectorAll('.image-btn.reset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.target;
+    resetImage(target);
+  });
+});
+
+if (fileDefault) {
+  fileDefault.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleImageUpload('default', e.target.files[0]);
+    e.target.value = '';
+  });
+}
+
+if (fileMessage) {
+  fileMessage.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleImageUpload('message', e.target.files[0]);
+    e.target.value = '';
+  });
+}
+
+if (defaultPreview) defaultPreview.addEventListener('click', () => fileDefault.click());
+if (messagePreview) messagePreview.addEventListener('click', () => fileMessage.click());
+
+// ============================================================
 // 初始化
 // ============================================================
 loadSettings();
-window.electronAPI.leavePetMode();  // 确保初始化时主进程知道当前是设置模式
+loadCustomImages();
+updatePetDisplay();
+window.electronAPI.leavePetMode();
 console.log('[RENDERER] Init complete, electronAPI:', !!window.electronAPI);

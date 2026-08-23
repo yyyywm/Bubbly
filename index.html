@@ -37,6 +37,29 @@
         <button class="scale-btn" data-scale="125">特大</button>
       </div>
     </div>
+    <div class="image-group">
+      <label>桌宠图片（可选）</label>
+      <div class="image-upload-row">
+        <div class="image-preview" id="default-preview">
+          <span class="placeholder-text">📷 默认状态</span>
+        </div>
+        <div class="image-actions">
+          <input type="file" id="file-default" accept="image/*" hidden>
+          <button class="image-btn upload" data-target="default">选择</button>
+          <button class="image-btn reset" data-target="default">清除</button>
+        </div>
+      </div>
+      <div class="image-upload-row">
+        <div class="image-preview" id="message-preview">
+          <span class="placeholder-text">📷 收到消息</span>
+        </div>
+        <div class="image-actions">
+          <input type="file" id="file-message" accept="image/*" hidden>
+          <button class="image-btn upload" data-target="message">选择</button>
+          <button class="image-btn reset" data-target="message">清除</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="connect-area">
@@ -59,6 +82,7 @@
       <div class="pet-cheek left"></div>
       <div class="pet-cheek right"></div>
     </div>
+    <img id="pet-image" src="" alt="桌宠图片">
   </div>
   <div id="status-dot"></div>
   <div id="input-panel">
