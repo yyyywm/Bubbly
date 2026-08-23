@@ -16,12 +16,13 @@
  *    桌宠区域 → CSS no-drag + JS 拖拽（支持双击和右键）
  *    输入面板 → 整窗口交互
  *
- *  IPC 通信（5 条）:
- *    - enter-pet-mode         → 进入桌宠模式
- *    - leave-pet-mode         → 返回设置面板
- *    - pet-input-visible      → 输入面板显示/隐藏
- *    - show-pet-context-menu  → 桌宠右键菜单
- *    - drag-move              → 桌宠 JS 拖拽（上报常量按下点）
+ *  IPC 通信:
+ *    - enter-pet-mode          → 进入桌宠模式
+ *    - leave-pet-mode          → 返回设置面板
+ *    - pet-input-visible       → 输入面板显示/隐藏
+ *    - show-pet-context-menu   → 桌宠右键菜单
+ *    - context-menu-items      → 渲染进程上报菜单模板
+ *    - drag-move               → 桌宠 JS 拖拽（上报常量按下点）
  * ============================================================
  */
 
@@ -151,29 +152,36 @@ ipcMain.on('pet-input-visible', (event, visible) => {
 });
 
 ipcMain.on('show-pet-context-menu', (event) => {
-  if (!mainWindow) return;
-  const contextMenu = Menu.buildFromTemplate([
-    { label: '💌 发送消息', click: () => {
-        event.sender.send('pet-menu-send-message');
-      }
-    },
-    { type: 'separator' },
-    { label: '🏠 返回设置', click: () => {
-        event.sender.send('pet-menu-leave-pet-mode');
-      }
-    },
-    { label: '🔄 重启应用', click: () => {
-        app.relaunch();
-        app.exit(0);
-      }
-    },
-    { label: '❌ 退出', click: () => app.quit() }
-  ]);
-  // 不传 x/y，让 Menu.popup 使用默认光标位置，
-  // 彻底规避 Electron 中各 API 坐标空间不一致的 bug
-  contextMenu.popup({ window: mainWindow });
-  console.log('[MAIN] pet context menu shown');
+  // 不再用主进程硬编码模板；改为向渲染进程索取当前菜单模板，
+  // 渲染进程根据本地状态（是否勿扰、队列内容）拼装动态菜单，
+  // 主进程只负责用 Menu.buildFromTemplate 渲染并执行菜单项点击。
+  event.sender.send('context-menu-items');
+  console.log('[MAIN] request pet context menu items');
 });
+
+// 渲染进程上报菜单模板后，主进程用 Menu.buildFromTemplate 构造并弹出
+// 菜单项的 label 支持 richText（用于在菜单中标注 "🌙" 图标），
+// click 通过 label 前缀约定派发 IPC 回渲染进程。
+ipcMain.on('context-menu-items-reply', (event, items) => {
+  if (!mainWindow || !Array.isArray(items)) return;
+  const menuItems = items.map(item => {
+    if (item.type) return item;  // separator / 特殊项原样透传
+    const out = { label: item.label, enabled: item.enabled !== false };
+    if (item.icon) out.icon = item.icon;
+    out.click = () => event.sender.send(item.action || '');
+    return out;
+  });
+  const contextMenu = Menu.buildFromTemplate(menuItems);
+  contextMenu.popup({ window: mainWindow });
+  console.log('[MAIN] pet context menu shown, items=' + items.length);
+});
+
+ipcMain.on('pet-menu-relaunch', () => {
+  app.relaunch();
+  app.exit(0);
+});
+
+ipcMain.on('pet-menu-quit', () => app.quit());
 
 // 桌宠 JS 拖拽：由主进程负责绝对定位，彻底规避反馈循环。
 // 渲染器上报"鼠标按下点的渲染器坐标"(拖拽全程为常量)，
