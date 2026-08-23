@@ -218,10 +218,10 @@ function applyScale(scale) {
   const ratio = scale / 100;
   const petSize = Math.round(150 * ratio);
 
-  const WIN_H = 340;
-  const PET_BOTTOM = 15;
-  const BUBBLE_H = 100;
-  const BUBBLE_GAP = 15;
+  const WIN_H = 300;
+  const PET_BOTTOM = 12;
+  const BUBBLE_H = 80;
+  const BUBBLE_GAP = 10;
 
   petBody.style.transform = `scale(${ratio})`;
   petBody.style.transformOrigin = 'center center';
