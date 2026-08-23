@@ -499,10 +499,64 @@ html, body {
 
 #status-dot.online {
   background: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+}
+
+#status-dot.online.dnd {
+  background: #ff9800;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.28);
+  animation: dnd-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes dnd-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.42);
+  }
 }
 
 #status-dot.offline {
   background: #f44336;
+}
+
+/* ============================================================
+ *  对方勿扰状态指示灯（🌙）
+ * ============================================================ */
+#peer-dnd-dot {
+  position: absolute;
+  top: 160px;
+  left: 55%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  border: 1px solid #c0c0c0;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+
+#peer-dnd-dot.dnd {
+  background: #ff9800;
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 1.5px rgba(255, 152, 0, 0.35);
+  animation: peer-dnd-pulse 1.8s ease-in-out infinite;
+}
+
+#peer-dnd-dot.offline {
+  background: #f44336;
+  border-color: #c62828;
+  animation: none;
+}
+
+@keyframes peer-dnd-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1.5px rgba(255, 152, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 3.5px rgba(255, 152, 0, 0.55);
+  }
 }
 
 #reconnect-hint {
