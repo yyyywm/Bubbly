@@ -11,7 +11,7 @@
 
 html, body {
   width: 360px;
-  height: 420px;
+  height: 340px;
   overflow: hidden;
   background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
@@ -26,7 +26,7 @@ html, body {
   top: 0;
   left: 0;
   width: 360px;
-  height: 420px;
+  height: 340px;
   background: linear-gradient(180deg, #fffbf5 0%, #fff6ee 100%);
   border-radius: 14px;
   border: 1px solid #f5e6d8;
@@ -202,7 +202,7 @@ html, body {
   top: 0;
   left: 0;
   width: 360px;
-  height: 420px;
+  height: 340px;
   display: none;
   cursor: none;
   pointer-events: none;
@@ -210,7 +210,7 @@ html, body {
 
 #pet-container {
   position: absolute;
-  bottom: 20px;
+  bottom: 15px;
   left: 50%;
   transform: translateX(-50%);
   width: 150px;
@@ -374,11 +374,10 @@ html, body {
  * ============================================================ */
 #bubble-container {
   position: absolute;
-  top: 50px;
   left: 50%;
   transform: translateX(-50%);
   width: 240px;
-  height: 130px;
+  height: 100px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -390,7 +389,7 @@ html, body {
 .bubble {
   position: relative;
   max-width: 240px;
-  max-height: 110px;
+  max-height: 90px;
   padding: 8px 12px;
   background: white;
   border-radius: 20px;
@@ -485,7 +484,7 @@ html, body {
  * ============================================================ */
 #status-dot {
   position: absolute;
-  top: 234px;
+  top: 160px;
   left: 50%;
   transform: translateX(-50%);
   width: 8px;
@@ -508,7 +507,7 @@ html, body {
 
 #reconnect-hint {
   position: absolute;
-  top: 50px;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.95);

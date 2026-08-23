@@ -218,14 +218,23 @@ function applyScale(scale) {
   const ratio = scale / 100;
   const petSize = Math.round(150 * ratio);
 
+  const WIN_H = 340;
+  const PET_BOTTOM = 15;
+  const BUBBLE_H = 100;
+  const BUBBLE_GAP = 15;
+
   petBody.style.transform = `scale(${ratio})`;
   petBody.style.transformOrigin = 'center center';
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
 
-  const petTop = 420 - 20 - petSize;
-  bubbleContainer.style.top = '50px';
-  bubbleContainer.style.height = '130px';
+  // 气泡紧贴桌宠上方：随缩放动态计算位置，避免出现"气泡飘在很上面"的间隙
+  const petTop = WIN_H - PET_BOTTOM - petSize;
+  const bubbleBottom = petTop - BUBBLE_GAP;
+  const bubbleTop = bubbleBottom - BUBBLE_H;
+
+  bubbleContainer.style.top = bubbleTop + 'px';
+  bubbleContainer.style.height = BUBBLE_H + 'px';
 
   statusDot.style.top = (petTop - 16) + 'px';
 
