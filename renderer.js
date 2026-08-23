@@ -228,38 +228,46 @@ function applyScale(scale) {
   // 内部耳朵/眼睛/鼻子等绝对定位无需改动
   const bodyScale = ratio * 0.8;
 
-  const PET_BOTTOM = 10;
-  const BUBBLE_GAP = 6;
-  const BUBBLE_H = Math.round(42 * ratio);
-  const STATUS_DOT_MARGIN = 14;
-  const SIDE_MARGIN = 20;
+  // 间距与固定高度（全部基于 ratio 缩放，除间距外）
+  const BUBBLE_H = Math.round(42 * ratio);        // 气泡容器高度
+  const BUBBLE_TO_DOT_GAP = 6;                     // 气泡底 → 状态灯顶
+  const STATUS_DOT_H = 8;                          // 状态灯高度（固定，不缩放）
+  const DOT_TO_PET_GAP = 10;                       // 状态灯底 → 桌宠顶
+  const PET_BOTTOM = 10;                           // 桌宠底 → 输入框顶
+  const INPUT_GAP = 4;                             // 输入框内容额外内边距
+  const INPUT_H = Math.round(35 * ratio);          // 输入框高度
+  const SIDE_MARGIN = 20;                          // 桌宠左右边距
 
-  // 由渲染器算窗口尺寸，通知主进程——主进程只用这个值。
-  // 以后加新元素、调缩放、改布局，窗口大小自动同步。
+  const inputSpace = INPUT_GAP + INPUT_H;
+  // 从上到下：[气泡 BUBBLE_H] [间距] [状态灯 STATUS_DOT_H] [间距] [桌宠 petSize] [PET_BOTTOM] [INPUT_GAP] [输入框 INPUT_H]
+  const petTop = BUBBLE_H + BUBBLE_TO_DOT_GAP + STATUS_DOT_H + DOT_TO_PET_GAP;
   const winW = petSize + SIDE_MARGIN * 2;
-  const winH = petSize + PET_BOTTOM + BUBBLE_GAP + BUBBLE_H + STATUS_DOT_MARGIN;
-
-  const WIN_H = winH;
+  const winH = petTop + petSize + PET_BOTTOM + inputSpace;
 
   petBody.style.transform = `scale(${bodyScale})`;
   petBody.style.transformOrigin = 'center center';
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
+  // 用 top 定位代替 CSS 的 bottom，避免 CSS bottom:10px 的参考点依赖 pet-area 显式 height
+  petContainer.style.bottom = '';
+  petContainer.style.top = petTop + 'px';
 
-  // 同步更新 #pet-area 尺寸，让 #pet-container 的 bottom:10px 有正确的参考点
+  // 同步 #pet-area 尺寸：让所有 bottom 定位有正确的参考点，也让 setWindowSize 与 DOM 一致
   petArea.style.width = winW + 'px';
   petArea.style.height = winH + 'px';
 
-  const petTop = WIN_H - PET_BOTTOM - petSize;
-  const bubbleBottom = petTop - BUBBLE_GAP;
-  const bubbleTop = bubbleBottom - BUBBLE_H;
-
-  bubbleContainer.style.top = Math.max(0, bubbleTop) + 'px';
+  // 气泡容器：贴在窗口顶部
+  bubbleContainer.style.top = '0px';
   bubbleContainer.style.height = BUBBLE_H + 'px';
+  bubbleContainer.style.width = winW + 'px';
 
-  statusDot.style.top = (petTop - STATUS_DOT_MARGIN) + 'px';
+  // 输入框宽度跟随窗口
+  inputPanel.style.width = winW + 'px';
+
+  // 状态灯：在气泡下方
+  statusDot.style.top = (BUBBLE_H + BUBBLE_TO_DOT_GAP) + 'px';
   if (peerDndDot) {
-    peerDndDot.style.top = (petTop - STATUS_DOT_MARGIN) + 'px';
+    peerDndDot.style.top = (BUBBLE_H + BUBBLE_TO_DOT_GAP) + 'px';
     peerDndDot.style.left = (50 + 10) + '%';
   }
 

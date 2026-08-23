@@ -197,8 +197,8 @@ html, body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 280px;
-  height: 340px;
+  width: 160px;
+  height: 235px;
   display: none;
   cursor: none;
   pointer-events: none;
@@ -206,7 +206,7 @@ html, body {
 
 #pet-container {
   position: absolute;
-  bottom: 10px;
+  top: 66px;
   left: 50%;
   transform: translateX(-50%);
   width: 120px;
@@ -370,6 +370,7 @@ html, body {
  * ============================================================ */
 #bubble-container {
   position: absolute;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 160px;
@@ -429,7 +430,7 @@ html, body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 180px;
+  width: 160px;
   display: none;
   flex-direction: column;
   align-items: center;
@@ -477,7 +478,7 @@ html, body {
  * ============================================================ */
 #status-dot {
   position: absolute;
-  top: 160px;
+  top: 48px;
   left: 50%;
   transform: translateX(-50%);
   width: 8px;
@@ -487,7 +488,7 @@ html, body {
   transition: background 0.3s;
   pointer-events: auto;
   cursor: pointer;
-  -webkit-app-region: drag;  /* 状态灯区域可拖拽窗口 */
+  -webkit-app-region: drag;
 }
 
 #status-dot.online {
@@ -509,7 +510,7 @@ html, body {
  * ============================================================ */
 #peer-dnd-dot {
   position: absolute;
-  top: 160px;
+  top: 48px;
   left: 55%;
   width: 8px;
   height: 8px;
