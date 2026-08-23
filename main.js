@@ -86,8 +86,8 @@ function createTrayIcon() {
 // ============================================================
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 360,
-    height: 420,
+    width: 280,
+    height: 340,
     x: 400,
     y: 300,
     transparent: true,
@@ -96,7 +96,7 @@ function createWindow() {
     focusable: true,
     hasShadow: false,
     resizable: false,
-    show: true,
+    show: false,
     backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
@@ -111,6 +111,8 @@ function createWindow() {
     console.log('[MAIN] did-finish-load');
     mainWindow.setAlwaysOnTop(true, 'normal');
     updateMousePenetration();
+    // 内容加载完再显示，避免透明窗口在 Windows 上闪白/闪红
+    mainWindow.show();
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
@@ -129,8 +131,7 @@ ipcMain.on('enter-pet-mode', () => {
   petMode = true;
   inputPanelVisible = false;
   updateMousePenetration();
-  // 桌宠模式下窗口缩到 260px，气泡紧贴桌宠，避免上方留白
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 360, height: 260 });
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 220, height: 220 });
   console.log('[MAIN] enter-pet-mode');
 });
 
@@ -139,8 +140,7 @@ ipcMain.on('leave-pet-mode', () => {
   petMode = false;
   inputPanelVisible = false;
   updateMousePenetration();
-  // 返回设置时窗口恢复 420px
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 360, height: 420 });
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 280, height: 340 });
   console.log('[MAIN] leave-pet-mode');
 });
 
@@ -199,11 +199,12 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
   const { x, y } = screen.getCursorScreenPoint();
+  const bounds = mainWindow.getBounds();
   mainWindow.setBounds({
     x: Math.round(x - clickX),
     y: Math.round(y - clickY),
-    width: 360,
-    height: 420
+    width: bounds.width,
+    height: bounds.height
   });
 });
 

@@ -223,20 +223,21 @@ function resetImage(target) {
 function applyScale(scale) {
   petScale = scale;
   const ratio = scale / 100;
-  const petSize = Math.round(150 * ratio);
+  const petSize = Math.round(120 * ratio);
+  // pet-body 基底 150px 通过 scale(0.8*ratio) 缩到 120px 视觉尺寸，
+  // 内部耳朵/眼睛/鼻子等绝对定位无需改动
+  const bodyScale = ratio * 0.8;
 
-  const WIN_H = 260;
+  const WIN_H = 220;
   const PET_BOTTOM = 10;
-  const BUBBLE_GAP = 8;
-  // 气泡高度随缩放自适应：小桌宠用更矮的气泡，避免窗口被撑高
-  const BUBBLE_H = Math.round(60 * ratio);
+  const BUBBLE_GAP = 6;
+  const BUBBLE_H = Math.round(42 * ratio);
 
-  petBody.style.transform = `scale(${ratio})`;
+  petBody.style.transform = `scale(${bodyScale})`;
   petBody.style.transformOrigin = 'center center';
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
 
-  // 气泡紧贴桌宠上方：随缩放动态计算位置，避免出现"气泡飘在很上面"的间隙
   const petTop = WIN_H - PET_BOTTOM - petSize;
   const bubbleBottom = petTop - BUBBLE_GAP;
   const bubbleTop = bubbleBottom - BUBBLE_H;
@@ -244,13 +245,12 @@ function applyScale(scale) {
   bubbleContainer.style.top = Math.max(0, bubbleTop) + 'px';
   bubbleContainer.style.height = BUBBLE_H + 'px';
 
-  statusDot.style.top = (petTop - 16) + 'px';
+  statusDot.style.top = (petTop - 14) + 'px';
   if (peerDndDot) {
-    peerDndDot.style.top = (petTop - 16) + 'px';
+    peerDndDot.style.top = (petTop - 14) + 'px';
     peerDndDot.style.left = (50 + 10) + '%';
   }
 
-  // 区域穿透和拖拽由 CSS -webkit-app-region 原生管理，无需通知主进程
   saveSettings();
 }
 
