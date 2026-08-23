@@ -403,8 +403,6 @@ html, body {
   opacity: 0;
   transform: translateY(30px);
   transition: opacity 0.35s ease-out, transform 0.35s ease-out;
-  display: flex;
-  align-items: center;
 }
 
 .bubble.show {
