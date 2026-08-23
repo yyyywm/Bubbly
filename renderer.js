@@ -624,7 +624,7 @@ function buildPetContextMenuTemplate() {
 }
 
 // 主进程请求菜单模板：构造后通过 contextBridge 回传
-window.electronAPI.on('context-menu-items', () => {
+window.electronAPI.onContextMenuItems(() => {
   window.electronAPI.sendContextMenuItems(buildPetContextMenuTemplate());
 });
 
