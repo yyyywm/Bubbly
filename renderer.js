@@ -246,6 +246,10 @@ function applyScale(scale) {
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
 
+  // 同步更新 #pet-area 尺寸，让 #pet-container 的 bottom:10px 有正确的参考点
+  petArea.style.width = winW + 'px';
+  petArea.style.height = winH + 'px';
+
   const petTop = WIN_H - PET_BOTTOM - petSize;
   const bubbleBottom = petTop - BUBBLE_GAP;
   const bubbleTop = bubbleBottom - BUBBLE_H;
