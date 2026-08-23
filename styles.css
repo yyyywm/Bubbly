@@ -503,17 +503,17 @@ html, body {
 }
 
 #status-dot.online.dnd {
-  background: #ff9800;
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.28);
+  background: #ffcc00;
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.32);
   animation: dnd-pulse 2.2s ease-in-out infinite;
 }
 
 @keyframes dnd-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.28);
+    box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.32);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.42);
+    box-shadow: 0 0 0 4px rgba(255, 204, 0, 0.5);
   }
 }
 

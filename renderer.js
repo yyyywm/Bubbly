@@ -325,6 +325,7 @@ function handleMessage(data) {
       applyScale(petScale);
       updatePetDisplay();
       updateStatusUI();
+      peerDndDot.className = 'peer-dnd-dot';
       // 刚加入房间，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
       broadcastDndStatus(doNotDisturb);
       break;
@@ -343,19 +344,17 @@ function handleMessage(data) {
       break;
 
     case 'peer-joined':
-      statusDot.className = 'online';
+      // 对方回来了：主状态灯反映【自己】的状态（联网 = 绿灯，自己 DND = 黄灯）
+      statusDot.className = 'online' + (doNotDisturb ? ' dnd' : '');
       peerDndDot.className = 'peer-dnd-dot';
       break;
 
     case 'dnd-status':
+      // 只处理对方的 DND 状态，通过 peerDndDot 显示；不触碰主状态灯
       if (data.from !== userId) {
-        if (data.dnd === true) {
-          statusDot.className = 'online dnd';
-          peerDndDot.className = 'peer-dnd-dot dnd';
-        } else {
-          statusDot.className = 'online';
-          peerDndDot.className = 'peer-dnd-dot';
-        }
+        peerDndDot.className = data.dnd === true
+          ? 'peer-dnd-dot dnd'
+          : 'peer-dnd-dot';
       }
       break;
 
@@ -459,7 +458,8 @@ function setStatus(text, color) {
 
 function updateStatusUI() {
   if (isConnected) {
-    statusDot.className = 'online';
+    // 主状态灯反映【自己】的状态：已连接 = 绿灯；自己开启勿扰 = 黄灯
+    statusDot.className = 'online' + (doNotDisturb ? ' dnd' : '');
     reconnectHint.style.display = 'none';
   } else {
     reconnectVisible = false;
@@ -540,6 +540,8 @@ window.electronAPI.onPetMenuLeavePetMode(() => {
 function toggleDnd() {
   doNotDisturb = !doNotDisturb;
   saveSettings();
+  // 切换后立刻刷新主状态灯：自己 DND → 黄灯，关闭 → 绿灯
+  updateStatusUI();
   broadcastDndStatus(doNotDisturb);
   if (!doNotDisturb && dndQueue.length > 0) {
     replayDndQueue();
