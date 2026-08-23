@@ -197,8 +197,6 @@ html, body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 220px;
-  height: 220px;
   display: none;
   cursor: none;
   pointer-events: none;

@@ -8,6 +8,7 @@
  *   - showPetContextMenu()        → 桌宠右键菜单
  *   - dragMove(dx, dy)            → 桌宠 JS 拖拽
  *   - sendContextMenuItems(items) → 上报当前桌宠右键菜单模板
+ *   - setWindowSize(w, h)         → 通知主进程更新窗口尺寸（渲染器为唯一尺寸源）
  *   - petMenuRelaunch()           → 重启应用
  *   - petMenuQuit()               → 退出应用
  *
@@ -32,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showPetContextMenu: () => ipcRenderer.send('show-pet-context-menu'),
   dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
   sendContextMenuItems: (items) => ipcRenderer.send('context-menu-items-reply', items),
+  setWindowSize: (w, h) => ipcRenderer.send('set-window-size', w, h),
   petMenuRelaunch: () => ipcRenderer.send('pet-menu-relaunch'),
   petMenuQuit: () => ipcRenderer.send('pet-menu-quit'),
 

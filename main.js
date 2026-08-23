@@ -46,9 +46,9 @@ if (process.platform === 'win32') {
 let mainWindow = null;
 let petMode = false;
 let inputPanelVisible = false;
-// 桌宠窗口尺寸由主进程显式管理，用模块级常量锁定，
-// 避免在 Windows dpr≠1 下每次 setBounds 后 getBounds 的 DPI 取整误差累积，
-// 导致"越拖动窗口越大"的漂移 bug
+// 窗口尺寸由渲染器通过 set-window-size IPC 通知；
+// 渲染器算好布局后发新尺寸，主进程只用这个值。
+// 这样以后桌宠缩放、加新元素、调气泡位置，主进程无需同步常量。
 let winW = 280;
 let winH = 340;
 
@@ -136,8 +136,7 @@ ipcMain.on('enter-pet-mode', () => {
   petMode = true;
   inputPanelVisible = false;
   updateMousePenetration();
-  winW = 220; winH = 220;
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: winW, height: winH });
+  // 窗口尺寸由渲染器在 applyScale 里通过 set-window-size 通知
   console.log('[MAIN] enter-pet-mode');
 });
 
@@ -146,9 +145,23 @@ ipcMain.on('leave-pet-mode', () => {
   petMode = false;
   inputPanelVisible = false;
   updateMousePenetration();
-  winW = 280; winH = 340;
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: winW, height: winH });
   console.log('[MAIN] leave-pet-mode');
+});
+
+ipcMain.on('set-window-size', (event, w, h) => {
+  if (!mainWindow || typeof w !== 'number' || typeof h !== 'number') return;
+  // 限制下限，防止渲染器误报 0
+  winW = Math.max(80, Math.round(w));
+  winH = Math.max(80, Math.round(h));
+  const bounds = mainWindow.getBounds();
+  // 以窗口左上角不动，仅缩尺寸：先改大小，再把左上角挪回去对齐桌面坐标
+  mainWindow.setBounds({
+    x: Math.round(bounds.x),
+    y: Math.round(bounds.y),
+    width: winW,
+    height: winH
+  });
+  console.log('[MAIN] set-window-size: ' + winW + 'x' + winH);
 });
 
 ipcMain.on('pet-input-visible', (event, visible) => {
@@ -200,14 +213,12 @@ ipcMain.on('pet-menu-quit', () => app.quit());
 //   覆盖到本该可点的后方区域（"窗口延展变大、点不到后面"）。
 //   setBounds 在同一调用里固定 width/height，Windows 无机会重算尺寸，彻底消除尺寸漂移。
 //
-// 由于定位基于稳定的屏幕坐标(以显示器为原点，setPosition 不会改变它)，
-// setPosition 不会在渲染器侧引发坐标漂移 → 彻底消除 setPosition→伪 mousemove→再 setPosition 的反馈循环。
+// 尺寸来源：渲染器在 applyScale 里算好布局后通过 set-window-size IPC 通知主进程，
+// 主进程用 winW/winH 模块级变量记录，拖拽时直接引用，不读 bounds。
 ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
   const { x, y } = screen.getCursorScreenPoint();
-  // 用模块级常量锁定尺寸：不读 bounds，避免 getBounds 的 DPI 取整误差被反复读回，
-  // 累积成"越拖越大"的尺寸漂移。这是之前注释里写过的关键修复，缩小窗口时必须保留。
   mainWindow.setBounds({
     x: Math.round(x - clickX),
     y: Math.round(y - clickY),

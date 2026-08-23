@@ -228,10 +228,18 @@ function applyScale(scale) {
   // 内部耳朵/眼睛/鼻子等绝对定位无需改动
   const bodyScale = ratio * 0.8;
 
-  const WIN_H = 220;
   const PET_BOTTOM = 10;
   const BUBBLE_GAP = 6;
   const BUBBLE_H = Math.round(42 * ratio);
+  const STATUS_DOT_MARGIN = 14;
+  const SIDE_MARGIN = 20;
+
+  // 由渲染器算窗口尺寸，通知主进程——主进程只用这个值。
+  // 以后加新元素、调缩放、改布局，窗口大小自动同步。
+  const winW = petSize + SIDE_MARGIN * 2;
+  const winH = petSize + PET_BOTTOM + BUBBLE_GAP + BUBBLE_H + STATUS_DOT_MARGIN;
+
+  const WIN_H = winH;
 
   petBody.style.transform = `scale(${bodyScale})`;
   petBody.style.transformOrigin = 'center center';
@@ -245,13 +253,18 @@ function applyScale(scale) {
   bubbleContainer.style.top = Math.max(0, bubbleTop) + 'px';
   bubbleContainer.style.height = BUBBLE_H + 'px';
 
-  statusDot.style.top = (petTop - 14) + 'px';
+  statusDot.style.top = (petTop - STATUS_DOT_MARGIN) + 'px';
   if (peerDndDot) {
-    peerDndDot.style.top = (petTop - 14) + 'px';
+    peerDndDot.style.top = (petTop - STATUS_DOT_MARGIN) + 'px';
     peerDndDot.style.left = (50 + 10) + '%';
   }
 
+  window.electronAPI.setWindowSize(winW, winH);
   saveSettings();
+}
+
+function resetSetupWindowSize() {
+  window.electronAPI.setWindowSize(280, 340);
 }
 
 // ============================================================
@@ -523,6 +536,7 @@ window.electronAPI.onPetMenuLeavePetMode(() => {
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     reconnectVisible = false;
     window.electronAPI.leavePetMode();
+    resetSetupWindowSize();
     petArea.style.display = 'none';
     setupPanel.style.display = 'flex';
     setStatus('已断开连接', '#f44336');
@@ -752,6 +766,7 @@ statusDot.addEventListener('dblclick', (e) => {
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     reconnectVisible = false;
     window.electronAPI.leavePetMode();
+    resetSetupWindowSize();
     petArea.style.display = 'none';
     setupPanel.style.display = 'flex';
     setStatus('已断开连接', '#f44336');
