@@ -87,8 +87,8 @@ function createTrayIcon() {
 // ============================================================
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 280,
-    height: 300,
+    width: 360,
+    height: 420,
     x: 400,
     y: 300,
     transparent: true,
@@ -192,8 +192,8 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
   mainWindow.setBounds({
     x: Math.round(x - clickX),
     y: Math.round(y - clickY),
-    width: 280,
-    height: 300
+    width: 360,
+    height: 420
   });
 });
 

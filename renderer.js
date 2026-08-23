@@ -96,10 +96,10 @@ function applyScale(scale) {
   petContainer.style.width = petSize + 'px';
   petContainer.style.height = petSize + 'px';
 
-  bubbleContainer.style.top = Math.max(10, 300 - 220 - petSize - 12) + 'px';
+  bubbleContainer.style.top = Math.max(10, 420 - 220 - petSize - 12) + 'px';
   bubbleContainer.style.height = '120px';
 
-  const dotTop = Math.max(10, 300 - 220 - petSize - 12) + 120 + 6;
+  const dotTop = Math.max(10, 420 - 220 - petSize - 12) + 120 + 6;
   statusDot.style.top = dotTop + 'px';
 
   // 区域穿透和拖拽由 CSS -webkit-app-region 原生管理，无需通知主进程
