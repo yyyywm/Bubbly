@@ -218,10 +218,11 @@ function applyScale(scale) {
   const ratio = scale / 100;
   const petSize = Math.round(150 * ratio);
 
-  const WIN_H = 300;
-  const PET_BOTTOM = 12;
-  const BUBBLE_H = 80;
-  const BUBBLE_GAP = 10;
+  const WIN_H = 260;
+  const PET_BOTTOM = 10;
+  const BUBBLE_GAP = 8;
+  // 气泡高度随缩放自适应：小桌宠用更矮的气泡，避免窗口被撑高
+  const BUBBLE_H = Math.round(60 * ratio);
 
   petBody.style.transform = `scale(${ratio})`;
   petBody.style.transformOrigin = 'center center';
@@ -233,7 +234,7 @@ function applyScale(scale) {
   const bubbleBottom = petTop - BUBBLE_GAP;
   const bubbleTop = bubbleBottom - BUBBLE_H;
 
-  bubbleContainer.style.top = bubbleTop + 'px';
+  bubbleContainer.style.top = Math.max(0, bubbleTop) + 'px';
   bubbleContainer.style.height = BUBBLE_H + 'px';
 
   statusDot.style.top = (petTop - 16) + 'px';
