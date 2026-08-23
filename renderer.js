@@ -218,60 +218,72 @@ function resetImage(target) {
 }
 
 // ============================================================
-// 缩放
+// 缩放 —— 单一数据源架构
 // ============================================================
-function applyScale(scale) {
-  petScale = scale;
+//
+// 核心设计：computeLayout(scale) 是唯一计算入口，返回一个包含所有布局尺寸的纯对象。
+// applyScale 只做两件事：① 设置 CSS 自定义属性（:root vars）→ CSS 自动生效；
+//                        ② IPC 通知主进程更新窗口尺寸 → 主进程 setBounds / drag-move 用。
+//
+// 三处同步自动完成，修改桌宠大小/间距/气泡位置只需改 computeLayout 一个函数：
+//   ┌──────────────┐   CSS var()    ┌──────────────┐
+//   │ computeLayout │ ─────────────► │   styles.css │
+//   │  (算一次)     │                │ (var 引用)   │
+//   └──────┬───────┘                └──────────────┘
+//          │
+//          │ IPC set-window-size
+//          ▼
+//   ┌──────────────┐
+//   │  main.js     │
+//   │ winW/winH    │
+//   └──────────────┘
+//
+// 不再需要：inline style 覆盖、CSS 硬编码数值、主进程猜测尺寸
+
+/**
+ * 计算桌宠布局的所有尺寸 —— 单一数据源（single source of truth）
+ * 纯函数，输入 scale(%)，输出布局对象。
+ * 返回值同时用于设置 CSS 自定义属性和 IPC 通知主进程。
+ */
+function computeLayout(scale) {
   const ratio = scale / 100;
   const petSize = Math.round(120 * ratio);
-  // pet-body 基底 150px 通过 scale(0.8*ratio) 缩到 120px 视觉尺寸，
-  // 内部耳朵/眼睛/鼻子等绝对定位无需改动
-  const bodyScale = ratio * 0.8;
+  const bubbleH = Math.round(42 * ratio);
+  const inputH = Math.round(35 * ratio);
+  const bodyScale = (ratio * 0.8).toFixed(4);
 
-  // 间距与固定高度（全部基于 ratio 缩放，除间距外）
-  const BUBBLE_H = Math.round(42 * ratio);        // 气泡容器高度
-  const BUBBLE_TO_DOT_GAP = 6;                     // 气泡底 → 状态灯顶
-  const STATUS_DOT_H = 8;                          // 状态灯高度（固定，不缩放）
-  const DOT_TO_PET_GAP = 10;                       // 状态灯底 → 桌宠顶
-  const PET_BOTTOM = 10;                           // 桌宠底 → 输入框顶
-  const INPUT_GAP = 4;                             // 输入框内容额外内边距
-  const INPUT_H = Math.round(35 * ratio);          // 输入框高度
-  const SIDE_MARGIN = 20;                          // 桌宠左右边距
+  const BUBBLE_TO_DOT_GAP = 6;
+  const STATUS_DOT_H = 8;
+  const DOT_TO_PET_GAP = 10;
+  const PET_BOTTOM = 10;
+  const INPUT_GAP = 4;
+  const SIDE_MARGIN = 20;
 
-  const inputSpace = INPUT_GAP + INPUT_H;
-  // 从上到下：[气泡 BUBBLE_H] [间距] [状态灯 STATUS_DOT_H] [间距] [桌宠 petSize] [PET_BOTTOM] [INPUT_GAP] [输入框 INPUT_H]
-  const petTop = BUBBLE_H + BUBBLE_TO_DOT_GAP + STATUS_DOT_H + DOT_TO_PET_GAP;
+  const inputSpace = INPUT_GAP + inputH;
+  const petTop = bubbleH + BUBBLE_TO_DOT_GAP + STATUS_DOT_H + DOT_TO_PET_GAP;
+  const dotTop = bubbleH + BUBBLE_TO_DOT_GAP;
   const winW = petSize + SIDE_MARGIN * 2;
   const winH = petTop + petSize + PET_BOTTOM + inputSpace;
 
-  petBody.style.transform = `scale(${bodyScale})`;
-  petBody.style.transformOrigin = 'center center';
-  petContainer.style.width = petSize + 'px';
-  petContainer.style.height = petSize + 'px';
-  // 用 top 定位代替 CSS 的 bottom，避免 CSS bottom:10px 的参考点依赖 pet-area 显式 height
-  petContainer.style.bottom = '';
-  petContainer.style.top = petTop + 'px';
+  return { winW, winH, petSize, petTop, dotTop, bubbleH, bodyScale };
+}
 
-  // 同步 #pet-area 尺寸：让所有 bottom 定位有正确的参考点，也让 setWindowSize 与 DOM 一致
-  petArea.style.width = winW + 'px';
-  petArea.style.height = winH + 'px';
+function applyScale(scale) {
+  petScale = scale;
+  const L = computeLayout(scale);
+  const root = document.documentElement.style;
 
-  // 气泡容器：贴在窗口顶部
-  bubbleContainer.style.top = '0px';
-  bubbleContainer.style.height = BUBBLE_H + 'px';
-  bubbleContainer.style.width = winW + 'px';
+  // 通过 CSS 自定义属性驱动所有布局 — CSS 与 JS 自动同步，无需 inline style
+  root.setProperty('--win-w', L.winW + 'px');
+  root.setProperty('--win-h', L.winH + 'px');
+  root.setProperty('--pet-top', L.petTop + 'px');
+  root.setProperty('--pet-size', L.petSize + 'px');
+  root.setProperty('--bubble-h', L.bubbleH + 'px');
+  root.setProperty('--dot-top', L.dotTop + 'px');
+  root.setProperty('--body-scale', L.bodyScale);
 
-  // 输入框宽度跟随窗口
-  inputPanel.style.width = winW + 'px';
-
-  // 状态灯：在气泡下方
-  statusDot.style.top = (BUBBLE_H + BUBBLE_TO_DOT_GAP) + 'px';
-  if (peerDndDot) {
-    peerDndDot.style.top = (BUBBLE_H + BUBBLE_TO_DOT_GAP) + 'px';
-    peerDndDot.style.left = (50 + 10) + '%';
-  }
-
-  window.electronAPI.setWindowSize(winW, winH);
+  // 主进程用这个值做 setBounds / drag-move 定位
+  window.electronAPI.setWindowSize(L.winW, L.winH);
   saveSettings();
 }
 

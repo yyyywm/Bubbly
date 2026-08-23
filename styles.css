@@ -9,9 +9,25 @@
   user-select: none;
 }
 
+/*
+ * 桌宠布局自定义属性 — 由 JS 的 computeLayout() 驱动，CSS 通过 var() 引用
+ * 初始值为 scale=100 的默认值，JS 在 applyScale 时更新
+ * 架构：computeLayout 算一次 → CSS vars 立即生效 → IPC 通知主进程
+ *      三处（主进程 winW/winH、CSS 布局、JS 计算）自动同步，无需再写 inline style
+ */
+:root {
+  --win-w: 160px;
+  --win-h: 235px;
+  --pet-top: 66px;
+  --pet-size: 120px;
+  --bubble-h: 42px;
+  --dot-top: 48px;
+  --body-scale: 0.8;
+}
+
 html, body {
-  width: 280px;
-  height: 340px;
+  width: var(--win-w);
+  height: var(--win-h);
   overflow: hidden;
   background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
@@ -197,8 +213,8 @@ html, body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 160px;
-  height: 235px;
+  width: var(--win-w);
+  height: var(--win-h);
   display: none;
   cursor: none;
   pointer-events: none;
@@ -206,11 +222,11 @@ html, body {
 
 #pet-container {
   position: absolute;
-  top: 66px;
+  top: var(--pet-top);
   left: 50%;
   transform: translateX(-50%);
-  width: 120px;
-  height: 120px;
+  width: var(--pet-size);
+  height: var(--pet-size);
   pointer-events: auto;
   cursor: grab;
   -webkit-app-region: no-drag;
@@ -227,6 +243,7 @@ html, body {
     inset 0 -4px 8px rgba(255, 111, 0, 0.2),
     inset 0 4px 8px rgba(255, 255, 255, 0.3);
   animation: breathe 2s ease-in-out infinite;
+  transform: scale(var(--body-scale));
   transform-origin: center center;
 }
 
@@ -373,8 +390,8 @@ html, body {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 160px;
-  height: 42px;
+  width: var(--win-w);
+  height: var(--bubble-h);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -385,7 +402,7 @@ html, body {
 
 .bubble {
   position: relative;
-  max-width: 160px;
+  max-width: var(--win-w);
   max-height: 36px;
   padding: 5px 9px;
   background: white;
@@ -430,7 +447,7 @@ html, body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 160px;
+  width: var(--win-w);
   display: none;
   flex-direction: column;
   align-items: center;
@@ -478,7 +495,7 @@ html, body {
  * ============================================================ */
 #status-dot {
   position: absolute;
-  top: 48px;
+  top: var(--dot-top);
   left: 50%;
   transform: translateX(-50%);
   width: 8px;
@@ -510,8 +527,8 @@ html, body {
  * ============================================================ */
 #peer-dnd-dot {
   position: absolute;
-  top: 48px;
-  left: 55%;
+  top: var(--dot-top);
+  left: 60%;
   width: 8px;
   height: 8px;
   border-radius: 50%;
