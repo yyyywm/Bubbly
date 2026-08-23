@@ -46,6 +46,11 @@ if (process.platform === 'win32') {
 let mainWindow = null;
 let petMode = false;
 let inputPanelVisible = false;
+// 桌宠窗口尺寸由主进程显式管理，用模块级常量锁定，
+// 避免在 Windows dpr≠1 下每次 setBounds 后 getBounds 的 DPI 取整误差累积，
+// 导致"越拖动窗口越大"的漂移 bug
+let winW = 280;
+let winH = 340;
 
 // ============================================================
 // 鼠标穿透模式切换
@@ -131,7 +136,8 @@ ipcMain.on('enter-pet-mode', () => {
   petMode = true;
   inputPanelVisible = false;
   updateMousePenetration();
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 220, height: 220 });
+  winW = 220; winH = 220;
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: winW, height: winH });
   console.log('[MAIN] enter-pet-mode');
 });
 
@@ -140,7 +146,8 @@ ipcMain.on('leave-pet-mode', () => {
   petMode = false;
   inputPanelVisible = false;
   updateMousePenetration();
-  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 280, height: 340 });
+  winW = 280; winH = 340;
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: winW, height: winH });
   console.log('[MAIN] leave-pet-mode');
 });
 
@@ -199,12 +206,13 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
   if (!mainWindow) return;
   if (typeof clickX !== 'number' || typeof clickY !== 'number') return;
   const { x, y } = screen.getCursorScreenPoint();
-  const bounds = mainWindow.getBounds();
+  // 用模块级常量锁定尺寸：不读 bounds，避免 getBounds 的 DPI 取整误差被反复读回，
+  // 累积成"越拖越大"的尺寸漂移。这是之前注释里写过的关键修复，缩小窗口时必须保留。
   mainWindow.setBounds({
     x: Math.round(x - clickX),
     y: Math.round(y - clickY),
-    width: bounds.width,
-    height: bounds.height
+    width: winW,
+    height: winH
   });
 });
 
