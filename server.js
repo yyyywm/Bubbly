@@ -9,11 +9,13 @@
  *    客户端 → 服务器:
  *      {"type": "join", "room": "房间号", "id": "用户ID"}
  *      {"type": "message", "room": "房间号", "id": "用户ID", "text": "消息内容"}
+ *      {"type": "dnd-status", "room": "房间号", "id": "用户ID", "dnd": true/false}
  *      {"type": "leave", "room": "房间号", "id": "用户ID"}
  *
  *    服务器 → 客户端:
  *      {"type": "welcome", "room": "房间号", "id": "用户ID"}
  *      {"type": "message", "from": "对方ID", "text": "消息内容"}
+ *      {"type": "dnd-status", "from": "对方ID", "dnd": true/false}
  *      {"type": "error", "msg": "错误信息"}
  *      {"type": "peer-disconnected", "id": "对方ID"}
  *
@@ -92,6 +94,11 @@ wss.on('connection', (ws, req) => {
       // ---------- 发送消息 ----------
       case 'message':
         handleMessage(ws, msg, currentRoom, userId);
+        break;
+
+      // ---------- 勿扰状态同步 ----------
+      case 'dnd-status':
+        handleDndStatus(ws, msg, currentRoom, userId);
         break;
 
       // ---------- 离开房间 ----------
@@ -248,6 +255,36 @@ function handleMessage(ws, msg, room, userId) {
       type: 'error',
       msg: '对方不在线，消息未送达'
     }));
+  }
+}
+
+/**
+ * 处理勿扰状态同步
+ * 收到后将当前用户的 DND 状态广播给房间内其他用户
+ */
+function handleDndStatus(ws, msg, room, userId) {
+  if (!room || !userId) {
+    ws.send(JSON.stringify({ type: 'error', msg: '请先加入房间' }));
+    return;
+  }
+
+  const dnd = msg.dnd === true;
+
+  console.log(`[勿扰] [${room}] ${userId} 设置勿扰=${dnd}`);
+
+  const members = rooms.get(room);
+  if (!members) return;
+
+  const dndMsg = JSON.stringify({
+    type: 'dnd-status',
+    from: userId,
+    dnd
+  });
+
+  for (const member of members) {
+    if (member.id !== userId && member.ws.readyState === WS_READY_OPEN) {
+      member.ws.send(dndMsg);
+    }
   }
 }
 
