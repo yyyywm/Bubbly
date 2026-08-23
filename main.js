@@ -35,8 +35,6 @@ console.log('[MAIN] electron=' + process.versions.electron);
 // ============================================================
 // 初始化
 // ============================================================
-app.setPath('userData', path.join(app.getPath('userData'), `instance-${process.pid}`));
-
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('transparent-window-background', '#00000000');
 }
