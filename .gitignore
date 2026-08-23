@@ -4,3 +4,16 @@ node_modules/
 dist/
 out/
 *.db
+
+# 调试/测试残留（如有需要请放入 tests/ 目录并单独管理）
+debug-*
+demo-*
+test-*
+nul
+*.tmp
+*.bak
+*.swp
+
+# IDE 工作区
+.idea/
+.vscode/
