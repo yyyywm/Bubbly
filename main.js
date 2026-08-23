@@ -88,7 +88,7 @@ function createTrayIcon() {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 360,
-    height: 260,
+    height: 420,
     x: 400,
     y: 300,
     transparent: true,
@@ -130,6 +130,8 @@ ipcMain.on('enter-pet-mode', () => {
   petMode = true;
   inputPanelVisible = false;
   updateMousePenetration();
+  // 桌宠模式下窗口缩到 260px，气泡紧贴桌宠，避免上方留白
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 360, height: 260 });
   console.log('[MAIN] enter-pet-mode');
 });
 
@@ -138,6 +140,8 @@ ipcMain.on('leave-pet-mode', () => {
   petMode = false;
   inputPanelVisible = false;
   updateMousePenetration();
+  // 返回设置时窗口恢复 420px
+  mainWindow.setBounds({ x: mainWindow.getBounds().x, y: mainWindow.getBounds().y, width: 360, height: 420 });
   console.log('[MAIN] leave-pet-mode');
 });
 
@@ -193,7 +197,7 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
     x: Math.round(x - clickX),
     y: Math.round(y - clickY),
     width: 360,
-    height: 260
+    height: 420
   });
 });
 
