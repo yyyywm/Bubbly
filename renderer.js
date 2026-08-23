@@ -32,11 +32,13 @@ const inpNickname    = document.getElementById('inp-nickname');
 const setupStatus    = document.getElementById('setup-status');
 const statusDot      = document.getElementById('status-dot');
 const reconnectHint  = document.getElementById('reconnect-hint');
+const peerDndDot     = document.getElementById('peer-dnd-dot');
 
 // ============================================================
 // 状态
 // ============================================================
 const MAX_QUEUE_SIZE = 50;
+const MAX_MENU_HISTORY = 5;
 const userId = crypto.randomUUID();
 const messageQueue = [];
 
@@ -50,6 +52,8 @@ let isShowing = false;
 let nickname = '';
 let petScale = 100;
 let customImages = { default: null, message: null };
+let doNotDisturb = false;
+let dndQueue = [];  // 勿扰期间暂存消息，最多 MAX_MENU_HISTORY 条，FIFO 覆盖
 
 // ============================================================
 // 持久化设置
@@ -65,12 +69,14 @@ function loadSettings() {
       currentRoom = s.room;
     }
     if (s.nickname) inpNickname.value = s.nickname;
-    if (s.scale) {
+    if (typeof s.scale === 'number') {
       petScale = s.scale;
       document.querySelectorAll('.scale-btn').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.scale) === petScale);
       });
     }
+    // 勿扰模式随会话记忆
+    doNotDisturb = s.dnd === true;
   } catch (e) {
     console.warn('加载设置失败:', e);
   }
@@ -82,7 +88,8 @@ function saveSettings() {
       serverUrl: inpServer.value,
       room: currentRoom,
       nickname: inpNickname.value,
-      scale: petScale
+      scale: petScale,
+      dnd: doNotDisturb
     }));
   } catch (e) {
     console.warn('保存设置失败:', e);
@@ -238,6 +245,10 @@ function applyScale(scale) {
   bubbleContainer.style.height = BUBBLE_H + 'px';
 
   statusDot.style.top = (petTop - 16) + 'px';
+  if (peerDndDot) {
+    peerDndDot.style.top = (petTop - 16) + 'px';
+    peerDndDot.style.left = (50 + 10) + '%';
+  }
 
   // 区域穿透和拖拽由 CSS -webkit-app-region 原生管理，无需通知主进程
   saveSettings();
@@ -314,18 +325,38 @@ function handleMessage(data) {
       applyScale(petScale);
       updatePetDisplay();
       updateStatusUI();
+      // 刚加入房间，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
+      broadcastDndStatus(doNotDisturb);
       break;
 
     case 'message':
-      enqueueBubble(data.text);
+      if (doNotDisturb) {
+        enqueueDndQueue(data.text);
+      } else {
+        enqueueBubble(data.text);
+      }
       break;
 
     case 'peer-disconnected':
       statusDot.className = 'offline';
+      peerDndDot.className = 'peer-dnd-dot offline';
       break;
 
     case 'peer-joined':
       statusDot.className = 'online';
+      peerDndDot.className = 'peer-dnd-dot';
+      break;
+
+    case 'dnd-status':
+      if (data.from !== userId) {
+        if (data.dnd === true) {
+          statusDot.className = 'online dnd';
+          peerDndDot.className = 'peer-dnd-dot dnd';
+        } else {
+          statusDot.className = 'online';
+          peerDndDot.className = 'peer-dnd-dot';
+        }
+      }
       break;
 
     case 'error':
@@ -501,6 +532,120 @@ window.electronAPI.onPetMenuLeavePetMode(() => {
     isShowing = false;
     bubbleContainer.innerHTML = '';
   }
+});
+
+// ============================================================
+// 勿扰模式
+// ============================================================
+function toggleDnd() {
+  doNotDisturb = !doNotDisturb;
+  saveSettings();
+  broadcastDndStatus(doNotDisturb);
+  if (!doNotDisturb && dndQueue.length > 0) {
+    replayDndQueue();
+  }
+}
+
+function broadcastDndStatus(dnd) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'dnd-status', room: currentRoom, id: userId, dnd }));
+}
+
+function replayDndQueue() {
+  if (dndQueue.length === 0) return;
+  dndQueue.slice().forEach((text) => {
+    messageQueue.push(text);
+    showNextBubble();
+  });
+  dndQueue.length = 0;
+}
+
+function enqueueDndQueue(text) {
+  if (dndQueue.length >= MAX_MENU_HISTORY) {
+    dndQueue.shift();
+  }
+  dndQueue.push(text);
+}
+
+// 构建当前桌宠右键菜单的模板（由主进程渲染）
+function buildPetContextMenuTemplate() {
+  const items = [];
+
+  // 💌 发送消息
+  items.push({ label: '💌', action: 'pet-menu-send-message' });
+
+  items.push({ type: 'separator' });
+
+  // 🌙 勿扰开关
+  if (doNotDisturb) {
+    items.push({ label: '🔔', action: 'pet-menu-toggle-dnd', enabled: true });
+  } else {
+    items.push({ label: '🌙', action: 'pet-menu-toggle-dnd', enabled: true });
+  }
+
+  // 历史记录（最多 MAX_MENU_HISTORY 条，最近优先）
+  const histLen = dndQueue.length;
+  if (histLen > 0) {
+    items.push({ type: 'separator' });
+    const preview = dndQueue.slice().reverse();
+    for (let i = 0; i < preview.length; i++) {
+      const raw = String(preview[i]);
+      const display = raw.length > 20 ? raw.slice(0, 20) + '…' : raw;
+      items.push({
+        label: display,
+        action: '',
+        enabled: false
+      });
+    }
+    if (histLen > MAX_MENU_HISTORY) {
+      items.push({
+        label: '…更早消息未保留',
+        action: '',
+        enabled: false
+      });
+    }
+    items.push({ type: 'separator' });
+    items.push({
+      label: '▶ 立即重放全部 ' + histLen + ' 条',
+      action: 'pet-menu-replay-queue'
+    });
+  }
+
+  items.push({ type: 'separator' });
+
+  // 🏠 返回设置
+  items.push({ label: '🏠', action: 'pet-menu-leave-pet-mode' });
+  // 🔄 重启应用
+  items.push({ label: '🔄', action: 'pet-menu-relaunch' });
+  // ❌ 退出
+  items.push({ label: '❌', action: 'pet-menu-quit' });
+
+  return items;
+}
+
+// 主进程请求菜单模板：构造后通过 contextBridge 回传
+window.electronAPI.on('context-menu-items', () => {
+  window.electronAPI.sendContextMenuItems(buildPetContextMenuTemplate());
+});
+
+// 菜单项 IPC 回调：重启应用
+window.electronAPI.onPetMenuRelaunch(() => {
+  window.electronAPI.petMenuRelaunch();
+});
+
+// 菜单项 IPC 回调：退出应用
+window.electronAPI.onPetMenuQuit(() => {
+  window.electronAPI.petMenuQuit();
+});
+
+// 菜单项 IPC 回调：切换勿扰模式
+window.electronAPI.onPetMenuToggleDnd(() => {
+  toggleDnd();
+});
+
+// 菜单项 IPC 回调：立即重放队列消息
+window.electronAPI.onPetMenuReplayQueue(() => {
+  replayDndQueue();
 });
 
 // ============================================================
