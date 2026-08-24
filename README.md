@@ -1,8 +1,8 @@
-# 💕 Bubbly - 双人桌面桌宠应用
+# 💕 Bubbly
 
-你和对方各自运行客户端，通过 WebSocket 配对后，对方发送的消息会以气泡形式弹出在桌宠头顶。窗口置顶显示、默认鼠标穿透（不挡鼠标），仅桌宠/气泡/输入框区域可交互。
+> 双人桌面桌宠应用 — 你和对方各自运行客户端，通过 WebSocket 连接后，对方发送的消息会以气泡形式弹出在桌宠头顶。
 
-## 应用预览
+## 预览
 
 ### 设置面板
 
@@ -13,8 +13,6 @@
 ├──────────────────────────┤
 │ 服务器地址                │
 │ [ws://localhost:8080  ]  │
-│ 房间号                    │
-│ [____________________]   │
 │ 你的昵称                  │
 │ [____________________]   │
 │ 桌宠大小                  │
@@ -38,7 +36,7 @@
         ╰────────╯
 ```
 
-## ✨ 功能特性
+## 功能特性
 
 | 功能 | 说明 |
 |------|------|
@@ -51,30 +49,32 @@
 | **隐藏菜单栏** | 无边框、无菜单、无 Dock 图标，仅顶部菜单栏显示心形图标 |
 | **系统托盘退出** | 顶部菜单栏右键：重启应用 / 退出 |
 | **自动重连** | 连接断开后 5s 自动重连，显示重连提示 |
+| **勿扰模式** | 🌙 开启后消息暂存，关闭后一次性重放 |
+| **自定义图片** | 支持上传默认状态和收到消息时的自定义桌宠图片 |
 
-## 📁 项目结构
+## 项目结构
 
 ```
-pet/
-├── server.js        # WebSocket 信令服务器（房间配对、消息广播）
-├── main.js          # Electron 主进程（窗口管理、IPC、系统托盘）
-├── preload.js       # 主进程与渲染进程的安全通信桥梁
-├── index.html       # 桌宠 UI（结构，CSS 已提取到外部文件）
-├── styles.css       # 桌宠样式与动画
-├── renderer.js      # 页面逻辑（WebSocket、气泡队列、缩放）
-├── package.json     # 项目配置与启动脚本
-├── test-server.js   # 8 项自动化测试
-├── demo-chat.js     # 双向通信实时演示
-├── README.md        # 本文件
-└── DEVELOP.md       # 开发指南
+Bubbly/
+├── server.js              # WebSocket 信令服务器（全局配对，最多 2 人）
+├── main.js                # Electron 主进程（窗口管理、IPC、系统托盘）
+├── preload.js             # 主进程与渲染进程的安全通信桥梁
+├── index.html             # 桌宠 UI（结构，CSS 已提取到外部文件）
+├── styles.css             # 桌宠样式与动画
+├── renderer.js            # 页面逻辑（WebSocket、气泡队列、缩放）
+├── input-window.html      # 独立悬浮输入窗口
+├── input-window.js        # 输入窗口逻辑
+├── input-window.preload.js# 输入窗口预加载脚本
+├── package.json           # 项目配置与启动脚本
+├── README.md              # 本文件
+└── AGENTS.md              # AI Agent 开发约束
 ```
 
-## 🚀 快速启动
+## 快速启动
 
 ### 1. 安装依赖
 
 ```bash
-cd pet
 npm install
 ```
 
@@ -114,30 +114,32 @@ npm start
 ### 4. 配对
 
 1. 窗口打开后显示**设置面板**
-2. 填写服务器地址、房间号、昵称、桌宠大小
+2. 填写服务器地址、昵称、桌宠大小
 3. 点击 **💕 连接**
 4. 设置面板消失，桌宠出现
 
-| 场景 | 服务器地址 | 房间号 |
-|------|-----------|--------|
-| **本机测试** | 双方都填 `ws://localhost:8080` | 相同即可 |
-| **局域网** | 连接方填 `ws://服务器IP:8080` | 相同即可 |
-| **公网** | 连接方填 `ws://公网IP或域名:8080` | 相同即可 |
+| 场景 | 服务器地址 |
+|------|-----------|
+| **本机测试** | 双方都填 `ws://localhost:8080` |
+| **局域网** | 连接方填 `ws://服务器IP:8080` |
+| **公网** | 连接方填 `ws://公网IP或域名:8080` |
 
-## 🖱️ 操作说明
+> **注意**：服务器全局最多同时连接 2 人，无需输入房间号，连接即配对。
+
+## 操作说明
 
 | 操作 | 效果 |
 |------|------|
 | **左键拖拽标题栏** | 移动设置面板窗口 |
 | **左键拖拽桌宠** | 移动桌宠窗口（整个桌宠区域） |
 | **双击桌宠** | 弹出输入框，发送消息 |
-| **右键桌宠** | 弹出上下文菜单（发送消息 / 返回设置 / 重启 / 退出） |
+| **右键桌宠** | 弹出上下文菜单（发送消息 / 勿扰 / 历史 / 返回设置 / 重启 / 退出） |
 | **Enter / 发送** | 发送消息，输入框自动收起 |
 | **光标离开输入框** | 输入框自动隐藏 |
 | **双击状态灯** | 返回设置面板 / 立即重连 |
-| **菜单操心形图标右键** | 重启应用 / 退出 |
+| **菜单栏心形图标右键** | 重启应用 / 退出 |
 
-## 🔧 项目配置
+## 项目配置
 
 ### 服务器端口（`server.js`）
 
@@ -166,13 +168,14 @@ setTimeout(() => { /* 淡出 */ }, 2500);  // 2.5 秒
 setTimeout(() => { /* 清理 */ }, 2850);  // 淡出动画 0.35s 后清理
 ```
 
-## 🌐 局域网 / 公网部署
+## 局域网 / 公网部署
 
 ### 局域网
 
 1. 查看本机局域网 IP：
    ```bash
-   ifconfig | grep "inet "
+   ipconfig  # Windows
+   ifconfig  # macOS/Linux
    ```
 2. 连接方在设置面板填写：`ws://192.168.x.x:8080`
 
@@ -194,7 +197,7 @@ node server.js
 ws://云服务器公网IP:8080
 ```
 
-## 📦 打包发布
+## 打包发布
 
 ### macOS (.dmg)
 
@@ -210,14 +213,12 @@ npx electron-builder --win
 
 > 打包后客户端仍需服务器在运行，启动后填写服务器地址即可。
 
-## 🐛 开发调试
+## 开发调试
 
 - **查看控制台日志**：终端运行 `npm start` 可见主进程日志
 - **页面调试**：`npm start` 后使用 [Electron DevTools](https://www.electronjs.org/docs/latest/api/devtools-extension)
-- **运行测试**：`node test-server.js`
-- **双向通信演示**：`node demo-chat.js`
 
-## 🔍 技术栈
+## 技术栈
 
 | 技术 | 用途 |
 |------|------|
@@ -226,27 +227,29 @@ npx electron-builder --win
 | **纯 CSS** | 桌宠造型与动画，无需图片资源 |
 | **IPC 通信** | 主进程与渲染进程控制窗口行为 |
 
-## 📝 协议说明
+## 通信协议
 
 **客户端 → 服务器：**
 
 ```json
-{"type": "join", "room": "love123", "id": "user123"}
-{"type": "message", "room": "love123", "id": "user123", "text": "hello"}
-{"type": "leave", "room": "love123", "id": "user123"}
+{"type": "join", "id": "user123"}
+{"type": "message", "id": "user123", "text": "hello"}
+{"type": "dnd-status", "id": "user123", "dnd": true}
+{"type": "leave", "id": "user123"}
 ```
 
 **服务器 → 客户端：**
 
 ```json
-{"type": "welcome", "room": "love123", "id": "user123"}
+{"type": "welcome", "id": "user123"}
 {"type": "message", "from": "user456", "text": "hello"}
 {"type": "peer-joined", "id": "user456"}
 {"type": "peer-disconnected", "id": "user456"}
-{"type": "error", "msg": "房间已满"}
+{"type": "dnd-status", "from": "user456", "dnd": true}
+{"type": "error", "msg": "连接已满"}
 ```
 
-## ❓ 常见问题
+## 常见问题
 
 ### Q1: 启动客户端后什么也看不到？
 
@@ -267,9 +270,8 @@ y: 300,  // 屏幕顶部偏移
 
 ### Q4: 气泡不显示？
 
-1. 确认双方房间号相同
-2. 确认连接成功（桌宠状态指示灯为绿色）
-3. 检查 `renderer.js` 中 `showNextBubble()` 和 CSS 动画类 `.bubble.show`
+1. 确认连接成功（桌宠状态指示灯为绿色）
+2. 检查 `renderer.js` 中 `showNextBubble()` 和 CSS 动画类 `.bubble.show`
 
 ### Q5: 服务器连接失败？
 
@@ -289,15 +291,22 @@ y: 300,  // 屏幕顶部偏移
 
 ### Q7: 如何完全停止应用？
 
-```bash
-pkill -f "electron /Users/ywm/Desktop/vibecoding/pet"
-pkill -f "node /Users/ywm/Desktop/vibecoding/pet/server.js"
+**Windows:**
+```powershell
+Get-Process electron | Stop-Process
+Get-Process node | Where-Object { $_.CommandLine -like "*server.js" } | Stop-Process
 ```
 
-或点击屏幕顶部菜单栏 ❤ 图标 → 右键 → 退出
+**macOS/Linux:**
+```bash
+pkill -f "electron"
+pkill -f "node server.js"
+```
+
+或点击系统托盘 ❤ 图标 → 右键 → 退出
 
 ---
 
-## 📄 License
+## License
 
-MIT © 2025 bubbly
+MIT © 2025 Bubbly
