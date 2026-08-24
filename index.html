@@ -12,7 +12,7 @@
   <div id="setup-drag">
     <h2>💕 Bubbly</h2>
     <p class="subtitle">与对方配对，开始聊天</p>
-    <p class="hint">拖桌宠移动 · 双击发送消息 · 右键菜单 · 🌙 勿扰模式 · 双击状态灯返回设置</p>
+    <p class="hint">拖桌宠移动 · 双击发送消息 · 右键菜单 · 🌙 勿扰模式 · 双击底部光条返回设置</p>
   </div>
 
   <div class="form-area">
@@ -66,7 +66,7 @@
 
 <div id="pet-area">
   <div id="bubble-container"></div>
-  <div id="reconnect-hint">已断开，双击状态灯重连</div>
+  <div id="reconnect-hint">已断开，双击底部光条重连</div>
   <div id="pet-container">
     <div id="pet-body">
       <div class="pet-ear left"></div>
@@ -80,8 +80,10 @@
     </div>
     <img id="pet-image" src="" alt="桌宠图片">
   </div>
-  <div id="status-dot"></div>
-  <div id="peer-dnd-dot"></div>
+  <div id="status-bar">
+    <div id="status-bar-self"></div>
+    <div id="status-bar-peer"></div>
+  </div>
 </div>
 
 <script src="renderer.js"></script>

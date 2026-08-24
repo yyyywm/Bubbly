@@ -17,11 +17,10 @@
  */
 :root {
   --win-w: 160px;
-  --win-h: 235px;
-  --pet-top: 66px;
+  --win-h: 228px;
+  --pet-top: 59px;
   --pet-size: 120px;
   --bubble-h: 42px;
-  --dot-top: 48px;
   --body-scale: 0.8;
 }
 
@@ -443,64 +442,70 @@ html, body {
 }
 
 /* ============================================================
- *  状态指示灯与重连提示
+ *  底部状态微光条
  * ============================================================ */
-#status-dot {
+#status-bar {
   position: absolute;
-  top: var(--dot-top);
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #999;
-  transition: background 0.3s;
+  display: flex;
+  gap: 2px;
+  width: 32px;
+  height: 3px;
   pointer-events: auto;
   cursor: pointer;
   -webkit-app-region: drag;
 }
 
-#status-dot.online {
-  background: #4caf50;
-  box-shadow: 0 0 0 1.5px rgba(76, 175, 80, 0.25);
+#status-bar-self,
+#status-bar-peer {
+  flex: 1;
+  height: 100%;
+  border-radius: 2px;
+  background: #d0d0d0;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
 }
 
-#status-dot.online.dnd {
-  background: #ffcc00;
-  box-shadow: 0 0 0 1.5px rgba(255, 204, 0, 0.35);
+/* 自己状态: 在线 = 柔和绿光 */
+#status-bar-self.online {
+  background: #81c784;
+  box-shadow: 0 0 4px rgba(129, 199, 132, 0.5);
 }
 
-#status-dot.offline {
-  background: #f44336;
+/* 自己状态: 勿扰 = 柔和黄光 */
+#status-bar-self.dnd {
+  background: #ffd54f;
+  box-shadow: 0 0 4px rgba(255, 213, 79, 0.5);
+}
+
+/* 自己状态: 离线 = 柔和灰红 */
+#status-bar-self.offline {
+  background: #e57373;
+  box-shadow: 0 0 4px rgba(229, 115, 115, 0.4);
+}
+
+/* 对方状态: 在线 = 柔和绿光 */
+#status-bar-peer.online {
+  background: #81c784;
+  box-shadow: 0 0 4px rgba(129, 199, 132, 0.5);
+}
+
+/* 对方状态: 勿扰 = 柔和黄光 */
+#status-bar-peer.dnd {
+  background: #ffd54f;
+  box-shadow: 0 0 4px rgba(255, 213, 79, 0.5);
+}
+
+/* 对方状态: 离线 = 柔和灰红 */
+#status-bar-peer.offline {
+  background: #e57373;
+  box-shadow: 0 0 4px rgba(229, 115, 115, 0.4);
 }
 
 /* ============================================================
- *  对方勿扰状态指示灯（🌙）
+ *  重连提示
  * ============================================================ */
-#peer-dnd-dot {
-  position: absolute;
-  top: var(--dot-top);
-  left: 60%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #e0e0e0;
-  border: 1px solid #c0c0c0;
-  pointer-events: none;
-  -webkit-app-region: drag;
-}
-
-#peer-dnd-dot.dnd {
-  background: #ffcc00;
-  border-color: #ffcc00;
-  box-shadow: 0 0 0 1px rgba(255, 204, 0, 0.4);
-}
-
-#peer-dnd-dot.offline {
-  background: #f44336;
-  border-color: #c62828;
-}
-
 #reconnect-hint {
   position: absolute;
   top: 8px;

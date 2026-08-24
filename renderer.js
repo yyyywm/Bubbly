@@ -26,9 +26,8 @@ const btnConnect     = document.getElementById('btn-connect');
 const inpServer      = document.getElementById('inp-server');
 const inpNickname    = document.getElementById('inp-nickname');
 const setupStatus    = document.getElementById('setup-status');
-const statusDot      = document.getElementById('status-dot');
-const reconnectHint  = document.getElementById('reconnect-hint');
-const peerDndDot     = document.getElementById('peer-dnd-dot');
+const statusBarSelf   = document.getElementById('status-bar-self');
+const statusBarPeer   = document.getElementById('status-bar-peer');
 
 // ============================================================
 // 状态
@@ -241,20 +240,19 @@ function computeLayout(scale) {
   const inputH = Math.round(35 * ratio);
   const bodyScale = (ratio * 0.8).toFixed(4);
 
-  const BUBBLE_TO_DOT_GAP = 6;
-  const STATUS_DOT_H = 8;
-  const DOT_TO_PET_GAP = 10;
+  const BUBBLE_TO_BAR_GAP = 4;
+  const STATUS_BAR_H = 3;
+  const BAR_TO_PET_GAP = 10;
   const PET_BOTTOM = 10;
   const INPUT_GAP = 4;
   const SIDE_MARGIN = 20;
 
   const inputSpace = INPUT_GAP + inputH;
-  const petTop = bubbleH + BUBBLE_TO_DOT_GAP + STATUS_DOT_H + DOT_TO_PET_GAP;
-  const dotTop = bubbleH + BUBBLE_TO_DOT_GAP;
+  const petTop = bubbleH + BUBBLE_TO_BAR_GAP + STATUS_BAR_H + BAR_TO_PET_GAP;
   const winW = petSize + SIDE_MARGIN * 2;
   const winH = petTop + petSize + PET_BOTTOM + inputSpace;
 
-  return { winW, winH, petSize, petTop, dotTop, bubbleH, bodyScale };
+  return { winW, winH, petSize, petTop, bubbleH, bodyScale };
 }
 
 function applyScale(scale) {
@@ -268,7 +266,6 @@ function applyScale(scale) {
   root.setProperty('--pet-top', L.petTop + 'px');
   root.setProperty('--pet-size', L.petSize + 'px');
   root.setProperty('--bubble-h', L.bubbleH + 'px');
-  root.setProperty('--dot-top', L.dotTop + 'px');
   root.setProperty('--body-scale', L.bodyScale);
 
   // 主进程用这个值做 setBounds / drag-move 定位，并据此计算输入窗口悬浮位置
@@ -347,7 +344,7 @@ function handleMessage(data) {
       applyScale(petScale);
       updatePetDisplay();
       updateStatusUI();
-      peerDndDot.className = 'peer-dnd-dot';
+      statusBarPeer.className = '';
       // 刚连接，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
       broadcastDndStatus(doNotDisturb);
       break;
@@ -361,22 +358,20 @@ function handleMessage(data) {
       break;
 
     case 'peer-disconnected':
-      statusDot.className = 'offline';
-      peerDndDot.className = 'peer-dnd-dot offline';
+      statusBarSelf.className = 'offline';
+      statusBarPeer.className = 'offline';
       break;
 
     case 'peer-joined':
-      // 对方回来了：主状态灯反映【自己】的状态（联网 = 绿灯，自己 DND = 黄灯）
-      statusDot.className = 'online' + (doNotDisturb ? ' dnd' : '');
-      peerDndDot.className = 'peer-dnd-dot';
+      // 对方回来了：自己状态条反映【自己】的状态（联网 = 绿灯，自己 DND = 黄灯）
+      statusBarSelf.className = 'online' + (doNotDisturb ? ' dnd' : '');
+      statusBarPeer.className = '';
       break;
 
     case 'dnd-status':
-      // 只处理对方的 DND 状态，通过 peerDndDot 显示；不触碰主状态灯
+      // 只处理对方的 DND 状态，通过 statusBarPeer 显示；不触碰自己状态条
       if (data.from !== userId) {
-        peerDndDot.className = data.dnd === true
-          ? 'peer-dnd-dot dnd'
-          : 'peer-dnd-dot';
+        statusBarPeer.className = data.dnd === true ? 'dnd' : '';
       }
       break;
 
@@ -451,20 +446,20 @@ function setStatus(text, color) {
 
 function updateStatusUI() {
   if (isConnected) {
-    // 主状态灯反映【自己】的状态：已连接 = 绿灯；自己开启勿扰 = 黄灯
-    statusDot.className = 'online' + (doNotDisturb ? ' dnd' : '');
+    // 自己状态条反映【自己】的状态：已连接 = 绿灯；自己开启勿扰 = 黄灯
+    statusBarSelf.className = 'online' + (doNotDisturb ? ' dnd' : '');
     reconnectHint.style.display = 'none';
   } else {
     reconnectVisible = false;
     reconnectHint.style.display = 'none';
-    statusDot.className = 'offline';
+    statusBarSelf.className = 'offline';
   }
 }
 
 function showReconnectHint() {
   reconnectVisible = true;
   reconnectHint.style.display = 'block';
-  statusDot.className = 'offline';
+  statusBarSelf.className = 'offline';
 }
 
 function scheduleReconnect() {
@@ -737,9 +732,10 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
 btnConnect.addEventListener('click', connect);
 
 // ============================================================
-// 双击状态灯：已连接 → 返回设置，已断开 → 立即重连
+// 双击底部状态条：已连接 → 返回设置，已断开 → 立即重连
 // ============================================================
-statusDot.addEventListener('dblclick', (e) => {
+const statusBar = document.getElementById('status-bar');
+statusBar.addEventListener('dblclick', (e) => {
   e.preventDefault();
   e.stopPropagation();
   if (isConnected) {
