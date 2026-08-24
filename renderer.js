@@ -24,7 +24,6 @@ const fileMessage    = document.getElementById('file-message');
 const bubbleContainer = document.getElementById('bubble-container');
 const btnConnect     = document.getElementById('btn-connect');
 const inpServer      = document.getElementById('inp-server');
-const inpRoom        = document.getElementById('inp-room');
 const inpNickname    = document.getElementById('inp-nickname');
 const setupStatus    = document.getElementById('setup-status');
 const statusDot      = document.getElementById('status-dot');
@@ -43,7 +42,6 @@ let ws = null;
 let isConnected = false;
 let reconnectTimer = null;
 let reconnectVisible = false;
-let currentRoom = '';
 let isShowing = false;
 let nickname = '';
 let petScale = 100;
@@ -60,10 +58,6 @@ function loadSettings() {
     if (!saved) return;
     const s = JSON.parse(saved);
     if (s.serverUrl) inpServer.value = s.serverUrl;
-    if (s.room) {
-      inpRoom.value = s.room;
-      currentRoom = s.room;
-    }
     if (s.nickname) inpNickname.value = s.nickname;
     if (typeof s.scale === 'number') {
       petScale = s.scale;
@@ -82,7 +76,6 @@ function saveSettings() {
   try {
     localStorage.setItem('bubbly_settings', JSON.stringify({
       serverUrl: inpServer.value,
-      room: currentRoom,
       nickname: inpNickname.value,
       scale: petScale,
       dnd: doNotDisturb
@@ -292,19 +285,13 @@ function resetSetupWindowSize() {
 // ============================================================
 function connect() {
   const serverUrl = inpServer.value.trim();
-  const room = inpRoom.value.trim();
 
   if (!serverUrl) {
     setStatus('⚠️ 请输入服务器地址', '#f44336');
     return;
   }
-  if (!room) {
-    setStatus('⚠️ 请输入房间号', '#f44336');
-    return;
-  }
 
   nickname = inpNickname.value.trim() || userId;
-  currentRoom = room;
   saveSettings();
 
   setStatus('正在连接服务器…', '#666');
@@ -319,7 +306,7 @@ function connect() {
       console.log('WebSocket 已连接');
       // 连接成功，清除任何待触发的重连定时器（避免手动重连成功后旧定时器再次 connect）
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-      ws.send(JSON.stringify({ type: 'join', room: currentRoom, id: userId }));
+      ws.send(JSON.stringify({ type: 'join', id: userId }));
     };
 
     ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
@@ -352,7 +339,7 @@ function connect() {
 function handleMessage(data) {
   switch (data.type) {
     case 'welcome':
-      console.log('加入房间成功:', data.room);
+      console.log('连接成功');
       isConnected = true;
       window.electronAPI.enterPetMode();
       setupPanel.style.display = 'none';
@@ -361,7 +348,7 @@ function handleMessage(data) {
       updatePetDisplay();
       updateStatusUI();
       peerDndDot.className = 'peer-dnd-dot';
-      // 刚加入房间，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
+      // 刚连接，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
       broadcastDndStatus(doNotDisturb);
       break;
 
@@ -556,7 +543,7 @@ function toggleDnd() {
 
 function broadcastDndStatus(dnd) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'dnd-status', room: currentRoom, id: userId, dnd }));
+  ws.send(JSON.stringify({ type: 'dnd-status', id: userId, dnd }));
 }
 
 function replayDndQueue() {
@@ -724,7 +711,6 @@ window.electronAPI.onInputWindowMessage((event, text) => {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({
     type: 'message',
-    room: currentRoom,
     id: userId,
     text: t
   }));
