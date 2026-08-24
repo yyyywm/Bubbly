@@ -406,10 +406,12 @@ function handleMessage(data) {
 // 消息气泡
 // ============================================================
 function enqueueBubble(text) {
-  if (messageQueue.length >= MAX_QUEUE_SIZE) {
+  // 防御性：确保始终是字符串，避免 [object Object] 写入气泡
+  const safeText = typeof text === 'string' ? text : String(text || '');
+  if (safeText.length >= MAX_QUEUE_SIZE) {
     messageQueue.shift();
   }
-  messageQueue.push(text);
+  messageQueue.push(safeText);
   showNextBubble();
 }
 
@@ -717,8 +719,14 @@ document.addEventListener('mouseup', (e) => {
 
 // 独立悬浮输入窗口回传消息：直接经 WebSocket 发出
 window.electronAPI.onInputWindowMessage((text) => {
-  const t = String(text || '').trim();
+  // 防御性：ipcRenderer.on 在跨进程反序列化时可能把参数包装成数组，
+  // typeof text 可能为 'object'（数组）而非 'string'，统一提取首元素。
+  const raw = Array.isArray(text) ? text[0] : text;
+  const t = String(raw || '').trim();
   if (!t) return;
+  if (typeof raw !== 'string') {
+    console.warn('[RENDERER] input-window message received non-string:', raw);
+  }
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({
     type: 'message',

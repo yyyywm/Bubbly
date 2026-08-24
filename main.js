@@ -105,7 +105,7 @@ function createWindow() {
     hasShadow: false,
     resizable: false,
     show: false,
-    backgroundColor: '#00000000',
+    backgroundColor: '#d83b3be1',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -246,7 +246,7 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
 //   - 主窗口关闭时由 cleanupInputWindow 销毁
 // ============================================================
 let inputWindow = null;
-const INPUT_W = 380, INPUT_H = 56;
+const INPUT_W = 260, INPUT_H = 56;
 const INPUT_GAP = 6;
 // 桌宠可见底部距窗口顶部的偏移量，由渲染器通过 set-window-size 第三参数上报。
 // 输入窗口跟随此偏移量，紧贴桌宠可见底部，避免窗口死区造成过大间距。

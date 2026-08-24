@@ -10,8 +10,10 @@ const msgInput = document.getElementById('msg-input');
 const btnSend  = document.getElementById('btn-send');
 
 function sendAndClose() {
-  const text = msgInput.value.trim();
+  const text = String(msgInput.value || '').trim();
   if (!text) return;
+  // 清空输入框后再发送，blur 检测空框时判定已发送
+  msgInput.value = '';
   window.electronAPI.sendAndClose(text);
 }
 
@@ -25,6 +27,17 @@ msgInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     window.electronAPI.close();
   }
+});
+
+// 失焦自动隐藏：用户点击桌面其他地方时立即关闭窗口，无需等待。
+// 用 setTimeout 让 click/sendAndClose 等同步事件先完成，避免点击发送按钮时
+// blur 抢先触发关闭窗口导致消息发不出去。
+msgInput.addEventListener('blur', () => {
+  setTimeout(() => {
+    if (!msgInput.value.trim()) {
+      window.electronAPI.close();
+    }
+  }, 60);
 });
 
 window.electronAPI.onClear(() => {
