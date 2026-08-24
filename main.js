@@ -308,8 +308,12 @@ ipcMain.on('show-input-window', () => {
     inputWindow.focus();
   });
 
-  // 输入窗口发回消息：转发给桌宠渲染进程
+  // 输入窗口发回消息：转发给桌宠渲染进程；也处理 Esc 关闭
   inputWindow.webContents.on('ipc-message', (event, channel, text) => {
+    if (channel === 'input-window-close') {
+      inputWindow.close();
+      return;
+    }
     if (channel !== 'input-window-send' || !mainWindow) return;
     if (typeof text === 'string' && text.trim() !== '') {
       mainWindow.webContents.send('input-window-send-message', text);
