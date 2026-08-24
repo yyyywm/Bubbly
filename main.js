@@ -152,11 +152,12 @@ ipcMain.on('leave-pet-mode', () => {
   console.log('[MAIN] leave-pet-mode');
 });
 
-ipcMain.on('set-window-size', (event, w, h) => {
+ipcMain.on('set-window-size', (event, w, h, petBottom) => {
   if (!mainWindow || typeof w !== 'number' || typeof h !== 'number') return;
   // 限制下限，防止渲染器误报 0
   winW = Math.max(80, Math.round(w));
   winH = Math.max(80, Math.round(h));
+  if (typeof petBottom === 'number') petBottomOffset = petBottom;
   const bounds = mainWindow.getBounds();
   // 以窗口左上角不动，仅缩尺寸：先改大小，再把左上角挪回去对齐桌面坐标
   mainWindow.setBounds({
@@ -247,14 +248,19 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
 let inputWindow = null;
 const INPUT_W = 380, INPUT_H = 56;
 const INPUT_GAP = 6;
+// 桌宠可见底部距窗口顶部的偏移量，由渲染器通过 set-window-size 第三参数上报。
+// 输入窗口跟随此偏移量，紧贴桌宠可见底部，避免窗口死区造成过大间距。
+let petBottomOffset = 0;
 
-// 把输入窗口重新定位到桌宠下方居中，并校正屏幕边界。
+// 把输入窗口重新定位到桌宠可见底部下方居中，并校正屏幕边界。
 // 在桌宠拖拽 / 缩放 / 每次显示时调用，保持跟随。
 function positionInputWindow() {
   if (!inputWindow || inputWindow.isDestroyed() || !mainWindow) return;
+  if (!petBottomOffset) return;  // 未在桌宠模式下，无需跟随
   const petBounds = mainWindow.getBounds();
+  const petBottomY = petBounds.y + petBottomOffset;
   let x = Math.round(petBounds.x + petBounds.width / 2 - INPUT_W / 2);
-  let y = Math.round(petBounds.y + petBounds.height + INPUT_GAP);
+  let y = Math.round(petBottomY + INPUT_GAP);
 
   const display = screen.getDisplayNearestPoint({ x: petBounds.x, y: petBounds.y });
   const { bounds } = display;
@@ -284,8 +290,9 @@ ipcMain.on('show-input-window', () => {
   }
 
   const petBounds = mainWindow.getBounds();
+  const petBottomY = petBottomOffset ? petBounds.y + petBottomOffset : petBounds.y + petBounds.height;
   let x = Math.round(petBounds.x + petBounds.width / 2 - INPUT_W / 2);
-  let y = Math.round(petBounds.y + petBounds.height + INPUT_GAP);
+  let y = Math.round(petBottomY + INPUT_GAP);
 
   // 校正屏幕边界
   const display = screen.getDisplayNearestPoint({ x: petBounds.x, y: petBounds.y });
@@ -324,19 +331,21 @@ ipcMain.on('show-input-window', () => {
     inputWindow.show();
     inputWindow.focus();
   });
+});
 
-  // 输入窗口发回消息：转发给桌宠渲染进程；也处理 Esc 关闭
-  inputWindow.webContents.on('ipc-message', (event, channel, text) => {
-    if (channel === 'input-window-close') {
-      inputWindow.close();
-      return;
-    }
-    if (channel !== 'input-window-send' || !mainWindow) return;
-    if (typeof text === 'string' && text.trim() !== '') {
-      mainWindow.webContents.send('input-window-send-message', text);
-    }
-    inputWindow.close();
-  });
+// 输入窗口发回消息 / 关闭：用 ipcMain.on 而不是 webContents.on('ipc-message')，
+// 因为 ipc-message 的第三个参数是未解包的 args 数组（typeof 为 'object'），
+// 会导致 typeof text === 'string' 判定失败、消息被丢弃。ipcMain.on 的参数按
+// ipcRenderer.send 的原值解包，text 直接拿到字符串。
+ipcMain.on('input-window-send', (event, text) => {
+  if (typeof text === 'string' && text.trim() !== '' && mainWindow) {
+    mainWindow.webContents.send('input-window-send-message', text.trim());
+  }
+  if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
+});
+
+ipcMain.on('input-window-close', () => {
+  if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
 });
 
 // ============================================================

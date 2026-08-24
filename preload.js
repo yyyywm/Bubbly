@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showInputWindow: () => ipcRenderer.send('show-input-window'),
   dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
   sendContextMenuItems: (items) => ipcRenderer.send('context-menu-items-reply', items),
-  setWindowSize: (w, h) => ipcRenderer.send('set-window-size', w, h),
+  setWindowSize: (w, h, petBottom) => ipcRenderer.send('set-window-size', w, h, petBottom),
   petMenuRelaunch: () => ipcRenderer.send('pet-menu-relaunch'),
   petMenuQuit: () => ipcRenderer.send('pet-menu-quit'),
 

@@ -278,8 +278,8 @@ function applyScale(scale) {
   root.setProperty('--dot-top', L.dotTop + 'px');
   root.setProperty('--body-scale', L.bodyScale);
 
-  // 主进程用这个值做 setBounds / drag-move 定位
-  window.electronAPI.setWindowSize(L.winW, L.winH);
+  // 主进程用这个值做 setBounds / drag-move 定位，并据此计算输入窗口悬浮位置
+  window.electronAPI.setWindowSize(L.winW, L.winH, L.petTop + L.petSize);
   saveSettings();
 }
 
