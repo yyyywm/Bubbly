@@ -165,6 +165,8 @@ ipcMain.on('set-window-size', (event, w, h) => {
     width: winW,
     height: winH
   });
+  // 桌宠尺寸变化后，同步更新悬浮输入窗口位置
+  positionInputWindow();
   console.log('[MAIN] set-window-size: ' + winW + 'x' + winH);
 });
 
@@ -222,6 +224,8 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
     width: winW,
     height: winH
   });
+  // 桌宠位置变化后，同步更新悬浮输入窗口位置，保持跟随
+  positionInputWindow();
 });
 
 // ============================================================
@@ -241,6 +245,24 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
 //   - 主窗口关闭时由 cleanupInputWindow 销毁
 // ============================================================
 let inputWindow = null;
+const INPUT_W = 380, INPUT_H = 56;
+const INPUT_GAP = 6;
+
+// 把输入窗口重新定位到桌宠下方居中，并校正屏幕边界。
+// 在桌宠拖拽 / 缩放 / 每次显示时调用，保持跟随。
+function positionInputWindow() {
+  if (!inputWindow || inputWindow.isDestroyed() || !mainWindow) return;
+  const petBounds = mainWindow.getBounds();
+  let x = Math.round(petBounds.x + petBounds.width / 2 - INPUT_W / 2);
+  let y = Math.round(petBounds.y + petBounds.height + INPUT_GAP);
+
+  const display = screen.getDisplayNearestPoint({ x: petBounds.x, y: petBounds.y });
+  const { bounds } = display;
+  x = Math.max(Math.round(bounds.x), Math.min(x, Math.round(bounds.x + bounds.width - INPUT_W)));
+  y = Math.min(y, Math.round(bounds.y + bounds.height - INPUT_H));
+
+  inputWindow.setBounds({ x, y, width: INPUT_W, height: INPUT_H });
+}
 
 function cleanupInputWindow() {
   if (inputWindow) {
@@ -251,29 +273,29 @@ function cleanupInputWindow() {
 
 ipcMain.on('show-input-window', () => {
   if (!mainWindow) return;
-  // 已有输入窗口：聚焦、清空即可（避免重复弹窗）
+  // 已有输入窗口：重新跟随定位、聚焦、清空即可（避免重复弹窗）
   if (inputWindow && !inputWindow.isDestroyed()) {
     try {
+      positionInputWindow();
       inputWindow.focus();
       inputWindow.webContents.send('input-window-clear');
     } catch (_) { /* window in bad state */ }
     return;
   }
 
-  const w = 380, h = 56;
   const petBounds = mainWindow.getBounds();
-  let x = Math.round(petBounds.x + petBounds.width / 2 - w / 2);
-  let y = Math.round(petBounds.y + petBounds.height + 12);
+  let x = Math.round(petBounds.x + petBounds.width / 2 - INPUT_W / 2);
+  let y = Math.round(petBounds.y + petBounds.height + INPUT_GAP);
 
   // 校正屏幕边界
   const display = screen.getDisplayNearestPoint({ x: petBounds.x, y: petBounds.y });
   const { bounds } = display;
-  x = Math.max(Math.round(bounds.x), Math.min(x, Math.round(bounds.x + bounds.width - w)));
-  y = Math.min(y, Math.round(bounds.y + bounds.height - h));
+  x = Math.max(Math.round(bounds.x), Math.min(x, Math.round(bounds.x + bounds.width - INPUT_W)));
+  y = Math.min(y, Math.round(bounds.y + bounds.height - INPUT_H));
 
   inputWindow = new BrowserWindow({
-    width: w,
-    height: h,
+    width: INPUT_W,
+    height: INPUT_H,
     x,
     y,
     transparent: true,
@@ -298,6 +320,7 @@ ipcMain.on('show-input-window', () => {
   const inputUrl = 'file://' + path.join(__dirname, 'input-window.html');
   inputWindow.loadURL(inputUrl);
   inputWindow.once('ready-to-show', () => {
+    positionInputWindow();
     inputWindow.show();
     inputWindow.focus();
   });
