@@ -41,6 +41,9 @@
       "main.js",
       "renderer.js",
       "preload.js",
+      "input-window.html",
+      "input-window.js",
+      "input-window.preload.js",
       "index.html",
       "styles.css",
       "package.json"

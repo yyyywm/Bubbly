@@ -24,7 +24,6 @@ const fileMessage    = document.getElementById('file-message');
 const bubbleContainer = document.getElementById('bubble-container');
 const inputPanel     = document.getElementById('input-panel');
 const msgInput       = document.getElementById('msg-input');
-const btnSend        = document.getElementById('btn-send');
 const btnConnect     = document.getElementById('btn-connect');
 const inpServer      = document.getElementById('inp-server');
 const inpRoom        = document.getElementById('inp-room');
@@ -520,7 +519,7 @@ function scheduleReconnect() {
 }
 
 // ============================================================
-// 双击桌宠 → 弹出输入框 / 断开时重连
+// 双击桌宠 → 弹出独立悬浮输入窗口 / 断开时重连
 // ============================================================
 petContainer.addEventListener('dblclick', (e) => {
   e.preventDefault();
@@ -535,7 +534,7 @@ petContainer.addEventListener('dblclick', (e) => {
     connect();
     return;
   }
-  showInput();
+  window.electronAPI.showInputWindow();
 });
 
 // 右键桌宠 → 弹出上下文菜单
@@ -547,9 +546,9 @@ petContainer.addEventListener('contextmenu', (e) => {
   window.electronAPI.showPetContextMenu();
 });
 
-// 菜单项 IPC 回调：发送消息
+// 菜单项 IPC 回调：发送消息（打开独立悬浮输入窗口）
 window.electronAPI.onPetMenuSendMessage(() => {
-  if (isConnected) showInput();
+  if (isConnected) window.electronAPI.showInputWindow();
 });
 
 // 菜单项 IPC 回调：返回设置
@@ -747,13 +746,12 @@ document.addEventListener('mouseup', (e) => {
   petContainer.style.cursor = 'grab';
 });
 
-inputPanel.addEventListener('focusout', (e) => {
-  if (inputPanel.contains(e.relatedTarget)) return;
-  hideInput();
-});
-
-msgInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendMessage();
+// 独立悬浮输入窗口回传消息：走原 sendMessage() 经 WebSocket 发出
+window.electronAPI.onInputWindowMessage((text) => {
+  const t = String(text || '').trim();
+  if (!t) return;
+  msgInput.value = t;
+  sendMessage();
 });
 
 btnSend.addEventListener('click', sendMessage);

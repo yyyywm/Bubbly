@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   leavePetMode: () => ipcRenderer.send('leave-pet-mode'),
   petInputVisible: (v) => ipcRenderer.send('pet-input-visible', v),
   showPetContextMenu: () => ipcRenderer.send('show-pet-context-menu'),
+  showInputWindow: () => ipcRenderer.send('show-input-window'),
   dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
   sendContextMenuItems: (items) => ipcRenderer.send('context-menu-items-reply', items),
   setWindowSize: (w, h) => ipcRenderer.send('set-window-size', w, h),
@@ -44,5 +45,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPetMenuClearQueue: (cb) => ipcRenderer.on('pet-menu-clear-queue', cb),
   onPetMenuRelaunch: (cb) => ipcRenderer.on('pet-menu-relaunch', cb),
   onPetMenuQuit: (cb) => ipcRenderer.on('pet-menu-quit', cb),
-  onContextMenuItems: (cb) => ipcRenderer.on('context-menu-items', cb)
+  onContextMenuItems: (cb) => ipcRenderer.on('context-menu-items', cb),
+  onInputWindowMessage: (cb) => ipcRenderer.on('input-window-send-message', cb)
 });
