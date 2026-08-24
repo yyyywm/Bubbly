@@ -121,7 +121,10 @@ function createWindow() {
   });
 
   mainWindow.loadURL('file://' + path.join(__dirname, 'index.html'));
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    cleanupInputWindow();
+  });
 
   if (process.platform === 'darwin') {
     app.dock.hide();
@@ -224,6 +227,94 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
     y: Math.round(y - clickY),
     width: winW,
     height: winH
+  });
+});
+
+// ============================================================
+// 独立悬浮输入窗口
+//
+// 架构：
+//   pet dblclick / 右键菜单「💌 发送消息」→ renderer 发 show-input-window
+//   → main 创建独立 BrowserWindow（透明、无边框、置顶）
+//     - 加载 input-window.html + input-window.preload.js + input-window.js
+//     - 输入窗口位于主窗口下方并居中，自动校正屏幕边界
+//     - 聚焦输入、Enter 发送 / Esc 关闭
+//   → input-window 渲染器 ipc 'input-window-send' → main 转发给 mainWindow
+//     → renderer 走原 sendMessage() 经 WebSocket 发出
+//
+// 生命周期：
+//   - 重复 show-input-window 时复用已有窗口（聚焦+清空）
+//   - 主窗口关闭时由 cleanupInputWindow 销毁
+// ============================================================
+let inputWindow = null;
+
+function cleanupInputWindow() {
+  if (inputWindow) {
+    try { inputWindow.destroy(); } catch (_) { /* window already closed */ }
+    inputWindow = null;
+  }
+}
+
+ipcMain.on('show-input-window', () => {
+  if (!mainWindow) return;
+  // 已有输入窗口：聚焦、清空即可（避免重复弹窗）
+  if (inputWindow && !inputWindow.isDestroyed()) {
+    try {
+      inputWindow.focus();
+      inputWindow.webContents.send('input-window-clear');
+    } catch (_) { /* window in bad state */ }
+    return;
+  }
+
+  const w = 380, h = 56;
+  const petBounds = mainWindow.getBounds();
+  let x = Math.round(petBounds.x + petBounds.width / 2 - w / 2);
+  let y = Math.round(petBounds.y + petBounds.height + 12);
+
+  // 校正屏幕边界
+  const display = screen.getDisplayNearestPoint({ x: petBounds.x, y: petBounds.y });
+  const { bounds } = display;
+  x = Math.max(Math.round(bounds.x), Math.min(x, Math.round(bounds.x + bounds.width - w)));
+  y = Math.min(y, Math.round(bounds.y + bounds.height - h));
+
+  inputWindow = new BrowserWindow({
+    width: w,
+    height: h,
+    x,
+    y,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    focusable: true,
+    hasShadow: true,
+    skipTaskbar: true,
+    resizable: false,
+    show: false,
+    backgroundColor: '#00000000',
+    parent: mainWindow,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'input-window.preload.js')
+    }
+  });
+
+  inputWindow.on('closed', () => { inputWindow = null; });
+
+  const inputUrl = 'file://' + path.join(__dirname, 'input-window.html');
+  inputWindow.loadURL(inputUrl);
+  inputWindow.once('ready-to-show', () => {
+    inputWindow.show();
+    inputWindow.focus();
+  });
+
+  // 输入窗口发回消息：转发给桌宠渲染进程
+  inputWindow.webContents.on('ipc-message', (event, channel, text) => {
+    if (channel !== 'input-window-send' || !mainWindow) return;
+    if (typeof text === 'string' && text.trim() !== '') {
+      mainWindow.webContents.send('input-window-send-message', text);
+    }
+    inputWindow.close();
   });
 });
 
