@@ -241,17 +241,19 @@ function computeLayout(scale) {
   const bodyScale = (ratio * 0.8).toFixed(4);
 
   const BUBBLE_TO_BAR_GAP = 4;
+  const STATUS_BAR_H = 3;
   const BAR_TO_PET_GAP = 6;
   const PET_BOTTOM = 4;
   const INPUT_GAP = 4;
   const SIDE_MARGIN = 20;
 
   const inputSpace = INPUT_GAP + inputH;
-  const petTop = bubbleH + BUBBLE_TO_BAR_GAP + BAR_TO_PET_GAP;
+  const barTop = bubbleH + BUBBLE_TO_BAR_GAP;
+  const petTop = barTop + STATUS_BAR_H + BAR_TO_PET_GAP;
   const winW = petSize + SIDE_MARGIN * 2;
   const winH = petTop + petSize + PET_BOTTOM + inputSpace;
 
-  return { winW, winH, petSize, petTop, bubbleH, bodyScale };
+  return { winW, winH, petSize, petTop, barTop, bubbleH, bodyScale };
 }
 
 function applyScale(scale) {
@@ -265,6 +267,7 @@ function applyScale(scale) {
   root.setProperty('--pet-top', L.petTop + 'px');
   root.setProperty('--pet-size', L.petSize + 'px');
   root.setProperty('--bubble-h', L.bubbleH + 'px');
+  root.setProperty('--bar-top', L.barTop + 'px');
   root.setProperty('--body-scale', L.bodyScale);
 
   // 主进程用这个值做 setBounds / drag-move 定位，并据此计算输入窗口悬浮位置
@@ -731,7 +734,7 @@ document.querySelectorAll('.scale-btn').forEach(btn => {
 btnConnect.addEventListener('click', connect);
 
 // ============================================================
-// 双击底部状态条：已连接 → 返回设置，已断开 → 立即重连
+// 双击状态光条：已连接 → 返回设置，已断开 → 立即重连
 // ============================================================
 const statusBar = document.getElementById('status-bar');
 statusBar.addEventListener('dblclick', (e) => {
