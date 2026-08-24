@@ -442,11 +442,12 @@ html, body {
 }
 
 /* ============================================================
- *  底部状态微光条
+ *  底部状态微光条（紧贴桌宠/图片下方）
  * ============================================================ */
 #status-bar {
   position: absolute;
-  bottom: 6px;
+  /* 定位在桌宠容器正下方，随 --pet-top + --pet-size 自动跟随 */
+  top: calc(var(--pet-top) + var(--pet-size) + 4px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;

@@ -241,14 +241,13 @@ function computeLayout(scale) {
   const bodyScale = (ratio * 0.8).toFixed(4);
 
   const BUBBLE_TO_BAR_GAP = 4;
-  const STATUS_BAR_H = 3;
-  const BAR_TO_PET_GAP = 10;
-  const PET_BOTTOM = 10;
+  const BAR_TO_PET_GAP = 6;
+  const PET_BOTTOM = 4;
   const INPUT_GAP = 4;
   const SIDE_MARGIN = 20;
 
   const inputSpace = INPUT_GAP + inputH;
-  const petTop = bubbleH + BUBBLE_TO_BAR_GAP + STATUS_BAR_H + BAR_TO_PET_GAP;
+  const petTop = bubbleH + BUBBLE_TO_BAR_GAP + BAR_TO_PET_GAP;
   const winW = petSize + SIDE_MARGIN * 2;
   const winH = petTop + petSize + PET_BOTTOM + inputSpace;
 
