@@ -754,8 +754,6 @@ window.electronAPI.onInputWindowMessage((text) => {
   sendMessage();
 });
 
-btnSend.addEventListener('click', sendMessage);
-
 // ============================================================
 // 缩放按钮
 // ============================================================
