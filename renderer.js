@@ -22,8 +22,6 @@ const messagePreview = document.getElementById('message-preview');
 const fileDefault    = document.getElementById('file-default');
 const fileMessage    = document.getElementById('file-message');
 const bubbleContainer = document.getElementById('bubble-container');
-const inputPanel     = document.getElementById('input-panel');
-const msgInput       = document.getElementById('msg-input');
 const btnConnect     = document.getElementById('btn-connect');
 const inpServer      = document.getElementById('inp-server');
 const inpRoom        = document.getElementById('inp-room');
@@ -43,7 +41,6 @@ const messageQueue = [];
 
 let ws = null;
 let isConnected = false;
-let inputVisible = false;
 let reconnectTimer = null;
 let reconnectVisible = false;
 let currentRoom = '';
@@ -320,6 +317,8 @@ function connect() {
 
     ws.onopen = () => {
       console.log('WebSocket 已连接');
+      // 连接成功，清除任何待触发的重连定时器（避免手动重连成功后旧定时器再次 connect）
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       ws.send(JSON.stringify({ type: 'join', room: currentRoom, id: userId }));
     };
 
@@ -446,43 +445,14 @@ function showNextBubble() {
 // ============================================================
 // 发送消息
 // ============================================================
-function sendMessage() {
-  const text = msgInput.value.trim();
-  if (!text) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-  ws.send(JSON.stringify({
-    type: 'message',
-    room: currentRoom,
-    id: userId,
-    text
-  }));
-
-  msgInput.value = '';
-  hideInput();
-}
+// 消息发送已通过 onInputWindowMessage 直接经 WebSocket 发出，
+// sendMessage() 旧接口已废弃并移除。
 
 // ============================================================
 // 输入面板
 // ============================================================
-function showInput() {
-  if (inputVisible) return;
-  inputVisible = true;
-  inputPanel.style.display = 'flex';
-  msgInput.value = '';
-  msgInput.focus();
-  petArea.style.cursor = 'default';
-  window.electronAPI.petInputVisible(true);
-}
-
-function hideInput() {
-  if (!inputVisible) return;
-  inputVisible = false;
-  inputPanel.style.display = 'none';
-  msgInput.blur();
-  petArea.style.cursor = 'none';
-  window.electronAPI.petInputVisible(false);
-}
+// 消息输入已通过独立悬浮窗口（input-window.html）实现，
+// 旧的 #input-panel 内联面板已废弃并移除。
 
 // ============================================================
 // UI 状态
@@ -564,7 +534,6 @@ window.electronAPI.onPetMenuLeavePetMode(() => {
     setupPanel.style.display = 'flex';
     setStatus('已断开连接', '#f44336');
     btnConnect.disabled = false;
-    hideInput();
     messageQueue.length = 0;
     isShowing = false;
     bubbleContainer.innerHTML = '';
@@ -746,12 +715,17 @@ document.addEventListener('mouseup', (e) => {
   petContainer.style.cursor = 'grab';
 });
 
-// 独立悬浮输入窗口回传消息：走原 sendMessage() 经 WebSocket 发出
+// 独立悬浮输入窗口回传消息：直接经 WebSocket 发出
 window.electronAPI.onInputWindowMessage((text) => {
   const t = String(text || '').trim();
   if (!t) return;
-  msgInput.value = t;
-  sendMessage();
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({
+    type: 'message',
+    room: currentRoom,
+    id: userId,
+    text: t
+  }));
 });
 
 // ============================================================
@@ -791,7 +765,6 @@ statusDot.addEventListener('dblclick', (e) => {
     setupPanel.style.display = 'flex';
     setStatus('已断开连接', '#f44336');
     btnConnect.disabled = false;
-    hideInput();
     messageQueue.length = 0;
     isShowing = false;
     bubbleContainer.innerHTML = '';

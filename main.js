@@ -14,15 +14,18 @@
  *  方案说明:
  *    设置面板/气泡/状态灯/提示 → CSS -webkit-app-region: drag 原生拖拽
  *    桌宠区域 → CSS no-drag + JS 拖拽（支持双击和右键）
- *    输入面板 → 整窗口交互
+ *    消息输入 → 独立悬浮输入窗口（input-window.html）
  *
  *  IPC 通信:
  *    - enter-pet-mode          → 进入桌宠模式
  *    - leave-pet-mode          → 返回设置面板
- *    - pet-input-visible       → 输入面板显示/隐藏
  *    - show-pet-context-menu   → 桌宠右键菜单
  *    - context-menu-items      → 渲染进程上报菜单模板
  *    - drag-move               → 桌宠 JS 拖拽（上报常量按下点）
+ *    - set-window-size         → 渲染器通知窗口尺寸
+ *    - show-input-window       → 打开独立悬浮输入窗口
+ *    - input-window-send       → 输入窗口发回消息
+ *    - input-window-close      → 输入窗口关闭
  * ============================================================
  */
 
@@ -44,8 +47,8 @@ if (process.platform === 'win32') {
 // 模块级状态
 // ============================================================
 let mainWindow = null;
+let tray = null;
 let petMode = false;
-let inputPanelVisible = false;
 // 窗口尺寸由渲染器通过 set-window-size IPC 通知；
 // 渲染器算好布局后发新尺寸，主进程只用这个值。
 // 这样以后桌宠缩放、加新元素、调气泡位置，主进程无需同步常量。
@@ -58,7 +61,7 @@ let winH = 340;
 function updateMousePenetration() {
   if (!mainWindow) return;
   // CSS -webkit-app-region 已处理区域交互，窗口始终接收鼠标事件
-  // 桌宠区域通过 JS 拖拽，设置面板/气泡/状态灯/输入面板通过 CSS drag
+  // 桌宠区域通过 JS 拖拽，设置面板/气泡/状态灯/提示通过 CSS drag
   mainWindow.setIgnoreMouseEvents(false, { forward: false });
 }
 
@@ -137,7 +140,6 @@ function createWindow() {
 ipcMain.on('enter-pet-mode', () => {
   if (!mainWindow) return;
   petMode = true;
-  inputPanelVisible = false;
   updateMousePenetration();
   // 窗口尺寸由渲染器在 applyScale 里通过 set-window-size 通知
   console.log('[MAIN] enter-pet-mode');
@@ -146,7 +148,6 @@ ipcMain.on('enter-pet-mode', () => {
 ipcMain.on('leave-pet-mode', () => {
   if (!mainWindow) return;
   petMode = false;
-  inputPanelVisible = false;
   updateMousePenetration();
   console.log('[MAIN] leave-pet-mode');
 });
@@ -165,13 +166,6 @@ ipcMain.on('set-window-size', (event, w, h) => {
     height: winH
   });
   console.log('[MAIN] set-window-size: ' + winW + 'x' + winH);
-});
-
-ipcMain.on('pet-input-visible', (event, visible) => {
-  if (!mainWindow || !petMode) return;
-  inputPanelVisible = !!visible;
-  updateMousePenetration();
-  console.log('[MAIN] petInputVisible: ' + inputPanelVisible);
 });
 
 ipcMain.on('show-pet-context-menu', (event) => {
@@ -240,7 +234,7 @@ ipcMain.on('drag-move', (event, clickX, clickY) => {
 //     - 输入窗口位于主窗口下方并居中，自动校正屏幕边界
 //     - 聚焦输入、Enter 发送 / Esc 关闭
 //   → input-window 渲染器 ipc 'input-window-send' → main 转发给 mainWindow
-//     → renderer 走原 sendMessage() 经 WebSocket 发出
+//     → renderer 直接经 WebSocket 发出
 //
 // 生命周期：
 //   - 重复 show-input-window 时复用已有窗口（聚焦+清空）

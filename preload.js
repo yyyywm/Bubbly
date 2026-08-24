@@ -4,8 +4,8 @@
  * 暴露给渲染进程的 IPC API:
  *   - enterPetMode()              → 进入桌宠模式
  *   - leavePetMode()              → 返回设置面板
- *   - petInputVisible(v)          → 输入面板显示/隐藏
  *   - showPetContextMenu()        → 桌宠右键菜单
+ *   - showInputWindow()           → 打开独立悬浮输入窗口
  *   - dragMove(dx, dy)            → 桌宠 JS 拖拽
  *   - sendContextMenuItems(items) → 上报当前桌宠右键菜单模板
  *   - setWindowSize(w, h)         → 通知主进程更新窗口尺寸（渲染器为唯一尺寸源）
@@ -20,7 +20,7 @@
  *   - pet-menu-clear-queue      → 清空队列
  *
  * 拖拽策略:
- *   - 设置面板/气泡/状态灯/输入面板 → CSS -webkit-app-region: drag 原生拖拽
+ *   - 设置面板/气泡/状态灯/提示 → CSS -webkit-app-region: drag 原生拖拽
  *   - 桌宠区域 → JS mousedown/mousemove/mouseup + IPC drag-move
  */
 
@@ -29,7 +29,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   enterPetMode: () => ipcRenderer.send('enter-pet-mode'),
   leavePetMode: () => ipcRenderer.send('leave-pet-mode'),
-  petInputVisible: (v) => ipcRenderer.send('pet-input-visible', v),
   showPetContextMenu: () => ipcRenderer.send('show-pet-context-menu'),
   showInputWindow: () => ipcRenderer.send('show-input-window'),
   dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
