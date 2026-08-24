@@ -105,7 +105,7 @@ function createWindow() {
     hasShadow: false,
     resizable: false,
     show: false,
-    backgroundColor: '#d83b3be1',
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
