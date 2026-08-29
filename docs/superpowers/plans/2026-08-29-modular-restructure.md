@@ -214,7 +214,7 @@ const path = require('path');
 let tray = null;
 ```
 
-随后**逐字**迁移原 `main.js` 的 `createTrayIcon` 函数（含托盘图标必须用 PNG 的注释；当前 HEAD 已是 PNG 版本）。末尾追加：
+随后**逐字**迁移原 `main.js` 的 `createTrayIcon` 函数（含托盘图标必须用 PNG 的注释；当前 HEAD 已是 PNG 版本）。**路径调整（第 5 处）：** 托盘图标路径 `path.join(__dirname, 'assets', 'tray-icon.png')` → `path.join(__dirname, '..', '..', 'assets', 'tray-icon.png')`（文件移入 src/main/ 后原相对路径会解析到不存在的 src/main/assets/）。末尾追加：
 
 ```js
 module.exports = { createTrayIcon };
@@ -279,7 +279,7 @@ module.exports = {
  * ============================================================
  */
 
-const { app, ipcMain, Menu, screen } = require('electron');
+const { app, ipcMain, Menu, screen, BrowserWindow } = require('electron');
 const path = require('path');
 const S = require('./state');
 const {
@@ -294,7 +294,7 @@ const {
 function registerIpcHandlers() {
 ```
 
-随后**逐字**迁移原 `main.js` 的全部 10 个 `ipcMain.on(...)` 注册块（含各自注释，应用替换规则），包进 `registerIpcHandlers` 函数体内（整体缩进一级）。其中 `show-input-window` 处理器内新建 inputWindow 的代码：
+随后**逐字**迁移原 `main.js` 的全部 11 个 `ipcMain.on(...)` 注册块（enter-pet-mode、leave-pet-mode、set-window-size、show-pet-context-menu、context-menu-items-reply、pet-menu-relaunch、pet-menu-quit、drag-move、show-input-window、input-window-send、input-window-close；含各自注释，应用替换规则），包进 `registerIpcHandlers` 函数体内（整体缩进一级）。其中 `show-input-window` 处理器内新建 inputWindow 的代码：
 
 - preload 路径：`path.join(__dirname, 'input-window.preload.js')` → `path.join(__dirname, '..', 'preload', 'input-window.js')`
 - loadURL：`path.join(__dirname, 'input-window.html')` → `path.join(__dirname, '..', '..', 'input-window.html')`（Task 3 再改）
