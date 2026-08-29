@@ -24,6 +24,7 @@ Bubbly/
 ├── src/
 │   ├── main/                    # Electron 主进程
 │   │   ├── index.js             # 入口：单实例锁、app 生命周期、初始化
+│   │   ├── state.js             # 跨模块共享的可变状态（mainWindow/winW 等）
 │   │   ├── windows.js           # 主窗口 + 悬浮输入窗口（创建/定位/销毁）
 │   │   ├── tray.js              # 托盘图标与菜单
 │   │   └── ipc.js               # 全部 ipcMain 通道注册
@@ -34,6 +35,7 @@ Bubbly/
 │   │   ├── index.html           # 原 index.html（样式/脚本引用改路径）
 │   │   ├── styles.css           # 原 styles.css
 │   │   ├── index.js             # 渲染入口：初始化与事件绑定
+│   │   ├── state.js             # DOM 引用与跨模块共享状态（最先加载）
 │   │   ├── settings.js          # 设置读写 localStorage
 │   │   ├── images.js            # 自定义桌宠图片（加载/上传/预览/重置）
 │   │   ├── layout.js            # computeLayout / applyScale / 窗口尺寸上报
@@ -60,7 +62,7 @@ Bubbly/
 
 1. **不引入打包器**：渲染进程各模块保持经典脚本（classic scripts），用 `<script>` 标签按依赖顺序加载。函数声明在经典脚本中天然全局共享，模块间通信方式与拆分前完全一致，行为零变化的风险最低。
 2. **模块边界沿用现有注释段**：`renderer.js` / `main.js` / `server.js` 中已有的 `// ====` 分段就是天然的模块边界，拆分基本是剪切粘贴，不改变任何函数实现。
-3. **共享状态通过全局变量**：`renderer.js` 顶部的模块级常量与变量（`userId`、`messageQueue` 等）随其使用方就近迁移；被多个模块引用的放入先加载的模块。加载顺序在 `index.html` 中显式声明并加注释。
+3. **共享状态**：渲染进程增加 `state.js`（DOM 引用 + 模块级状态，最先加载，因为 `const` 不跨脚本提升）；主进程增加 `state.js`（`module.exports` 一个可变状态对象，其他模块以 `S.mainWindow` 形式读写，机械替换、语义不变）。加载顺序在 `index.html` 中显式声明并加注释。
 4. **配置同步**：
    - `package.json`：`main` → `src/main/index.js`；`build.files` → `["src/**", "assets/**", "package.json"]`
    - 主进程内 `path.join(__dirname, ...)` 的 preload/HTML 路径相应调整
@@ -72,14 +74,15 @@ Bubbly/
 `index.html` 中按以下顺序加载（前者不依赖后者）：
 
 ```
-settings → images → layout → bubble → status → dnd → menu → connection → drag → index
+state → settings → images → layout → bubble → status → dnd → menu → connection → drag → index
 ```
 
+- `state` 最先加载：DOM 引用与共享状态（`const` 声明不跨脚本提升，必须先于使用方求值）
 - `connection` 依赖 `bubble`（收消息入队）、`status`（状态更新）、`dnd`（暂存）
 - `menu` 依赖 `dnd`、`connection`（发消息）
 - `index`（入口）最后加载，负责事件绑定与初始化调用
 
-主进程依赖方向：`index` → `windows` / `tray` / `ipc`；`ipc` 依赖 `windows`。
+主进程依赖方向：`index` → `state` / `windows` / `tray` / `ipc`；`windows` / `ipc` 依赖 `state`；`ipc` 依赖 `windows`。
 
 server：`index` → `handlers`。
 
