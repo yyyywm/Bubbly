@@ -56,18 +56,41 @@
 
 ```
 Bubbly/
-├── server.js              # WebSocket 信令服务器（全局配对，最多 2 人）
-├── main.js                # Electron 主进程（窗口管理、IPC、系统托盘）
-├── preload.js             # 主进程与渲染进程的安全通信桥梁
-├── index.html             # 桌宠 UI（结构，CSS 已提取到外部文件）
-├── styles.css             # 桌宠样式与动画
-├── renderer.js            # 页面逻辑（WebSocket、气泡队列、缩放）
-├── input-window.html      # 独立悬浮输入窗口
-├── input-window.js        # 输入窗口逻辑
-├── input-window.preload.js# 输入窗口预加载脚本
-├── package.json           # 项目配置与启动脚本
-├── README.md              # 本文件
-└── AGENTS.md              # AI Agent 开发约束
+├── src/
+│   ├── main/                    # Electron 主进程
+│   │   ├── index.js             # 入口：单实例锁、app 生命周期、初始化
+│   │   ├── state.js             # 跨模块共享的可变状态（mainWindow/winW 等）
+│   │   ├── windows.js           # 主窗口 + 悬浮输入窗口（创建/定位/销毁）
+│   │   ├── tray.js              # 托盘图标与菜单
+│   │   └── ipc.js               # 全部 ipcMain 通道注册
+│   ├── preload/
+│   │   ├── main.js              # 主窗口 preload
+│   │   └── input-window.js      # 输入窗口 preload
+│   ├── renderer/
+│   │   ├── index.html           # 桌宠 UI
+│   │   ├── styles.css           # 桌宠样式与动画
+│   │   ├── state.js             # DOM 引用与跨模块共享状态（最先加载）
+│   │   ├── settings.js          # 设置读写 localStorage
+│   │   ├── images.js            # 自定义桌宠图片
+│   │   ├── layout.js            # 缩放布局 / 窗口尺寸上报
+│   │   ├── connection.js        # WebSocket 连接、消息分发、自动重连
+│   │   ├── bubble.js            # 气泡队列与动画
+│   │   ├── status.js            # 状态微光条 / 重连提示
+│   │   ├── dnd.js               # 勿扰模式与消息暂存/重放
+│   │   ├── menu.js              # 桌宠右键菜单
+│   │   ├── drag.js              # 桌宠 JS 拖拽
+│   │   ├── index.js             # 入口：事件绑定与初始化（最后加载）
+│   │   └── input-window/
+│   │       ├── index.html       # 独立悬浮输入窗口
+│   │       └── renderer.js      # 输入窗口逻辑
+│   └── server/
+│       ├── index.js             # 入口：ws 服务、启动日志（npm run server）
+│       └── handlers.js          # join / message / dnd-status / leave 处理
+├── assets/
+│   └── tray-icon.png            # 托盘图标
+├── package.json                 # 项目配置与启动脚本
+├── README.md                    # 本文件
+└── AGENTS.md                    # AI Agent 开发约束
 ```
 
 ## 快速启动
@@ -86,7 +109,7 @@ npm install
 ### 2. 启动服务器
 
 ```bash
-node server.js
+npm run server
 ```
 
 ```
@@ -141,27 +164,27 @@ npm start
 
 ## 项目配置
 
-### 服务器端口（`server.js`）
+### 服务器端口（`src/server/index.js` 的 `PORT`）
 
 ```js
 const PORT = 8080;  // 修改为其他端口
 ```
 
-### 窗口尺寸（`main.js`）
+### 窗口初始尺寸（`src/main/state.js` 的 `winW` / `winH`）
 
 ```js
-const WIN_W = 280;  // 窗口宽度
-const WIN_H = 300;  // 窗口高度
+winW: 280,  // 窗口宽度
+winH: 340,  // 窗口高度
 ```
 
-### 桌面位置（`main.js`）
+### 窗口初始位置（`src/main/windows.js` 的 `createWindow`）
 
 ```js
-const WIN_X = 400;  // 初始 X 坐标
-const WIN_Y = 300;  // 初始 Y 坐标
+x: 400,  // 初始 X 坐标
+y: 300,  // 初始 Y 坐标
 ```
 
-### 气泡停留时间（`renderer.js`）
+### 气泡停留时间（`src/renderer/bubble.js`）
 
 ```js
 setTimeout(() => { /* 淡出 */ }, 2500);  // 2.5 秒
@@ -191,7 +214,7 @@ setTimeout(() => { /* 清理 */ }, 2850);  // 淡出动画 0.35s 后清理
 
 ```bash
 # 服务器端
-node server.js
+npm run server
 
 # 客户端填写
 ws://云服务器公网IP:8080
@@ -253,15 +276,15 @@ npx electron-builder --win
 
 ### Q1: 启动客户端后什么也看不到？
 
-确保 `main.js` 中 `alwaysOnTop: true` 已启用。缺少此设置，窗口可能被其他窗口遮挡。
+确保 `src/main/windows.js` 的 `createWindow()` 在内容加载完成后调用了 `setAlwaysOnTop(true)`。缺少此设置，窗口可能被其他窗口遮挡。
 
 ### Q2: 设置面板显示但点不动？
 
-检查 `renderer.js` 初始化末尾是否调用了 `setSetupModePenetration()`，该函数会关闭全屏穿透。
+鼠标穿透由 CSS `-webkit-app-region` 与 `src/main/windows.js` 的 `updateMousePenetration()` 共同控制（窗口始终接收鼠标事件，空白区域穿透由 CSS 区域决定）。检查 `src/renderer/styles.css` 中设置面板的 `-webkit-app-region` 配置是否正确。
 
 ### Q3: 桌宠和设置面板都看不到？
 
-可能是窗口位置超出屏幕范围。修改 `main.js` 中的窗口坐标：
+可能是窗口位置超出屏幕范围。修改 `src/main/windows.js` 的 `createWindow()` 中的窗口坐标：
 
 ```js
 x: 400,  // 屏幕左侧偏移
@@ -271,7 +294,7 @@ y: 300,  // 屏幕顶部偏移
 ### Q4: 气泡不显示？
 
 1. 确认连接成功（桌宠状态指示灯为绿色）
-2. 检查 `renderer.js` 中 `showNextBubble()` 和 CSS 动画类 `.bubble.show`
+2. 检查 `src/renderer/bubble.js` 中 `showNextBubble()` 和 `src/renderer/styles.css` 动画类 `.bubble.show`
 
 ### Q5: 服务器连接失败？
 
@@ -294,13 +317,13 @@ y: 300,  // 屏幕顶部偏移
 **Windows:**
 ```powershell
 Get-Process electron | Stop-Process
-Get-Process node | Where-Object { $_.CommandLine -like "*server.js" } | Stop-Process
+Get-Process node | Where-Object { $_.CommandLine -like "*src/server/index.js*" } | Stop-Process
 ```
 
 **macOS/Linux:**
 ```bash
 pkill -f "electron"
-pkill -f "node server.js"
+pkill -f "node src/server/index.js"
 ```
 
 或点击系统托盘 ❤ 图标 → 右键 → 退出
