@@ -3,7 +3,7 @@
  *
  * 职责：渲染一个轻量输入条，Enter 发送 / 点击发送 / Esc 关闭。
  * 发送后通过 preload 的 electronAPI.sendAndClose(text) 把消息回传给主进程，
- * 主进程再转发给桌宠渲染进程的 sendMessage()。
+ * 主进程再转发给主窗口渲染进程，经 WebSocket 发出。
  */
 
 const msgInput = document.getElementById('msg-input');
