@@ -2,10 +2,17 @@
  * ============================================================
  *  Bubbly - IPC 通道注册
  * ============================================================
- *  保留原 main.js 头部注释中的 IPC 通道清单（enter-pet-mode /
- *  leave-pet-mode / show-pet-context-menu / context-menu-items /
- *  drag-move / set-window-size / show-input-window /
- *  input-window-send / input-window-close）。
+ *
+ *  IPC 通信:
+ *    - enter-pet-mode          → 进入桌宠模式
+ *    - leave-pet-mode          → 返回设置面板
+ *    - show-pet-context-menu   → 桌宠右键菜单
+ *    - context-menu-items      → 渲染进程上报菜单模板
+ *    - drag-move               → 桌宠 JS 拖拽（上报常量按下点）
+ *    - set-window-size         → 渲染器通知窗口尺寸
+ *    - show-input-window       → 打开独立悬浮输入窗口
+ *    - input-window-send       → 输入窗口发回消息
+ *    - input-window-close      → 输入窗口关闭
  * ============================================================
  */
 
