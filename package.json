@@ -46,6 +46,7 @@
       "input-window.preload.js",
       "index.html",
       "styles.css",
+      "assets/**",
       "package.json"
     ]
   }

@@ -69,14 +69,9 @@ function updateMousePenetration() {
 // 系统托盘
 // ============================================================
 function createTrayIcon() {
-  const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-    <path fill="white" d="M8 14.5s-5.5-3.6-5.5-8C2.5 4.5 4 3 5.8 3c1.1 0 2 .6 2.2 1.5C8.2 3.6 9.1 3 10.2 3 12 3 13.5 4.5 13.5 6.5c0 4.4-5.5 8-5.5 8z" opacity="0.95"/>
-    <circle cx="5.8" cy="5.5" r="1.2" fill="black" opacity="0.7"/>
-    <circle cx="10.2" cy="5.5" r="1.2" fill="black" opacity="0.7"/>
-  </svg>`;
-  const img = nativeImage.createFromDataURL(
-    'data:image/svg+xml;base64,' + Buffer.from(svgData).toString('base64')
-  );
+  // nativeImage.createFromDataURL 不支持 SVG（会得到空图像，托盘图标不显示），
+  // 托盘图标必须使用 PNG/ICO 文件。
+  const img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-icon.png'));
   tray = new Tray(img);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '💕 Bubbly', enabled: false },
