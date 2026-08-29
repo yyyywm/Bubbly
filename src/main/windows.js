@@ -58,7 +58,7 @@ function createWindow() {
     S.mainWindow.show();
   });
 
-  S.mainWindow.loadURL('file://' + path.join(__dirname, '..', '..', 'index.html'));
+  S.mainWindow.loadURL('file://' + path.join(__dirname, '..', 'renderer', 'index.html'));
   S.mainWindow.on('closed', () => {
     S.mainWindow = null;
     cleanupInputWindow();

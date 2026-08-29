@@ -167,7 +167,7 @@ function registerIpcHandlers() {
 
     S.inputWindow.on('closed', () => { S.inputWindow = null; });
 
-    const inputUrl = 'file://' + path.join(__dirname, '..', '..', 'input-window.html');
+    const inputUrl = 'file://' + path.join(__dirname, '..', 'renderer', 'input-window', 'index.html');
     S.inputWindow.loadURL(inputUrl);
     S.inputWindow.once('ready-to-show', () => {
       positionInputWindow();
