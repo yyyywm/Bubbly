@@ -75,7 +75,7 @@ function createWindow() {
 // 架构：
 //   pet dblclick / 右键菜单「💌 发送消息」→ renderer 发 show-input-window
 //   → main 创建独立 BrowserWindow（透明、无边框、置顶）
-//     - 加载 input-window.html + input-window.preload.js + input-window.js
+//     - 加载 src/renderer/input-window/（index.html + renderer.js）+ src/preload/input-window.js
 //     - 输入窗口位于主窗口下方并居中，自动校正屏幕边界
 //     - 聚焦输入、Enter 发送 / Esc 关闭
 //   → input-window 渲染器 ipc 'input-window-send' → main 转发给 mainWindow
