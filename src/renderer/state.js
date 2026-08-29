@@ -17,6 +17,7 @@ const inpNickname    = document.getElementById('inp-nickname');
 const setupStatus    = document.getElementById('setup-status');
 const statusBarSelf   = document.getElementById('status-bar-self');
 const statusBarPeer   = document.getElementById('status-bar-peer');
+const reconnectHint   = document.getElementById('reconnect-hint');
 
 // ============================================================
 // 状态

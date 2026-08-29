@@ -33,4 +33,3 @@ function enqueueDndQueue(text) {
   dndQueue.push(text);
 }
 
-// 构建当前桌宠右键菜单的模板（由主进程渲染）
