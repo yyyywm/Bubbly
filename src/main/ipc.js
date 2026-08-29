@@ -22,7 +22,6 @@ const S = require('./state');
 const {
   updateMousePenetration,
   positionInputWindow,
-  cleanupInputWindow,
   INPUT_W,
   INPUT_H,
   INPUT_GAP
