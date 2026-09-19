@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "server": "node src/server/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -23,8 +24,10 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "electron": "^28.3.3",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "eslint": "^10.11.0"
   },
   "author": "ywmywmywm",
   "license": "MIT",
