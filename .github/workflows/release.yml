@@ -1,0 +1,117 @@
+# ============================================================
+#  版本发布流水线
+# ============================================================
+#  触发: 推送 v* 标签（详见 docs/RELEASE.md 发布流程）
+#  产物:
+#    - 客户端安装包（Windows NSIS 安装版 / 便携版, macOS DMG）
+#      → 自动上传至 GitHub Release（草稿，确认后发布）
+#    - 信令服务器 Docker 镜像 → 推送至 GHCR
+#      （ghcr.io/yyyywm/bubbly-server，含 semver 与 latest 标签）
+# ============================================================
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # 创建 Release 并上传安装包
+  packages: write   # 推送 GHCR 镜像
+
+jobs:
+  # ---------- 质量门禁：标签也必须先过 lint + test ----------
+  quality:
+    name: 质量门禁
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: ESLint 代码检查
+        run: npm run lint
+
+      - name: 单元与集成测试
+        run: npm test
+
+  # ---------- 客户端打包并上传 Release ----------
+  client:
+    name: 打包客户端 (${{ matrix.os }})
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win
+          - os: macos-latest
+            args: --mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建并发布安装包
+        run: npx electron-builder ${{ matrix.args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'  # 无签名证书时跳过 macOS 公证
+
+  # ---------- 服务器镜像构建并推送 GHCR ----------
+  server-image:
+    name: 构建服务器镜像
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像标签
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}-server
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=latest
+
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
