@@ -6,7 +6,11 @@
 
 ## [Unreleased]
 
-暂无。功能性改动（feat/fix/perf/refactor）合入 develop 前在此登记，
+### Added
+
+- 自动部署：新增 GitHub Webhook 监听器 `scripts/deploy-webhook.js`（零依赖，`npm run webhook`），`main` 分支收到 push 后自动同步远端代码（fetch + reset --hard）并执行 `docker compose up -d --build` 重启服务，含 HMAC-SHA256 签名校验、分支/事件过滤、部署排队合并与部署后健康检查；附 systemd 单元 `deploy/bubbly-webhook.service`、环境变量模板 `deploy/webhook.env.example` 及 DEPLOY.md 完整部署指南
+
+暂无其他在途改动。功能性改动（feat/fix/perf/refactor）合入 develop 前在此登记，
 分类使用 Added / Changed / Fixed / Removed（规范见 AGENTS.md 第 4 节）。
 
 ## [1.1.0] - 2026-09-19
