@@ -3,7 +3,7 @@
  *  Bubbly - WebSocket 信令服务器
  * ============================================================
  *  启动方式: npm run server
- *  默认监听端口: 8080
+ *  默认监听端口: 8080（可通过环境变量 PORT 覆盖，便于云端部署）
  *
  *  通信协议（JSON格式）:
  *    客户端 → 服务器:
@@ -38,12 +38,29 @@ const {
 // ============================================================
 // 常量
 // ============================================================
-const PORT = 8080;
+// 端口可由环境变量 PORT 注入（Docker / 云平台 / systemd 均通过它配置）
+const PORT = Number.parseInt(process.env.PORT, 10) || 8080;
 const MAX_PAYLOAD = 64 * 1024;
 const HEARTBEAT_INTERVAL = 30000;
+const BOOT_TIME = Date.now();
 
-// 创建HTTP服务器（仅用于承载WebSocket，不提供HTTP页面）
+// 读取 package.json 版本号，供健康检查上报
+const VERSION = require('../../package.json').version;
+
+// 创建HTTP服务器（承载 WebSocket，并提供 /health 健康检查端点）
 const httpServer = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    // 健康检查：供 Docker HEALTHCHECK / 负载均衡 / 拨测使用
+    const body = JSON.stringify({
+      status: 'ok',
+      clients: clients.length,
+      version: VERSION,
+      uptime: Math.floor((Date.now() - BOOT_TIME) / 1000)
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(body);
+    return;
+  }
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bubbly 服务器运行中 ✓');
 });
@@ -151,9 +168,9 @@ httpServer.listen(PORT, () => {
   console.log('  客户端连接后即可配对聊天\n');
 });
 
-// 优雅关闭
-process.on('SIGINT', () => {
-  console.log('\n[服务器] 正在关闭...');
+// 优雅关闭（SIGINT: Ctrl+C；SIGTERM: docker stop / systemd stop）
+function shutdown(signal) {
+  console.log(`\n[服务器] 收到 ${signal}，正在关闭...`);
   clearInterval(heartbeatInterval);
   wss.clients.forEach(client => {
     client.close();
@@ -162,4 +179,9 @@ process.on('SIGINT', () => {
     console.log('[服务器] 已关闭');
     process.exit(0);
   });
-});
+  // 兜底：若有连接迟迟未正常关闭，5s 后强制退出
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
