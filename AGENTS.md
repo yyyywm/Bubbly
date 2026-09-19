@@ -22,7 +22,7 @@
 | `perf` | 性能优化 | `perf(renderer): 减少区域穿透重算` |
 | `ci` | CI/CD 配置 | `ci: 配置 GitHub Actions` |
 
-scope 使用小写文件名或模块名（`main` / `renderer` / `server` / `preload`）。
+scope 使用小写文件名或模块名（如 `main` / `renderer` / `server` / `preload` / `build` / `tests`），同一模块保持用词一致。
 
 ---
 
@@ -133,7 +133,10 @@ git rm <文件名>
 
 ## 7. 违反后果
 
-项目已配置 `commit-msg` 钩子（位于 `.githooks/commit-msg`），不符合上述格式的消息会被自动拒绝。请先修改消息再重新提交。
+不合规的 commit message、分支操作与版本/日志遗漏，会在人工审核（PR review）环节被驳回，必须修改后才能合入。
+
+> 原 `.githooks/commit-msg` 自动校验钩子因从未激活（git 默认不读取 `.githooks/`）已移除；
+> 如需恢复强制校验，可从 git 历史还原该文件并执行 `git config core.hooksPath .githooks`。
 
 违反分支管理规范（未经审核改动 main）或版本/日志规范的行为，等同于破坏发布基线，必须在合入前纠正。
 
