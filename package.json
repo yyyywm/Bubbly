@@ -8,6 +8,7 @@
     "start": "electron .",
     "start:pair": "node scripts/dev-pair.js",
     "server": "node src/server/index.js",
+    "webhook": "node scripts/deploy-webhook.js",
     "test": "node --test",
     "lint": "eslint .",
     "dist": "electron-builder --win",
