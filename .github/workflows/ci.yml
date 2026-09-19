@@ -1,7 +1,7 @@
 # ============================================================
 #  持续集成流水线
 # ============================================================
-#  触发: push 到 main / 针对 main 的 PR
+#  触发: push 到 main / develop，或针对这两个分支的 PR
 #  内容: 多 Node 版本矩阵执行 ESLint 代码检查 + 单元/集成测试
 # ============================================================
 
@@ -9,9 +9,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   quality:

@@ -74,10 +74,10 @@ docker run -d \
 ## 方式三：裸机 systemd（无 Docker 环境）
 
 ```bash
-# 1. 需要 Node.js >= 18
-git clone https://github.com/yyyywm/Bubbly.git
-cd Bubbly
-npm ci --omit=dev
+# 1. 需要 Node.js >= 18，代码部署到 /opt/Bubbly（与下方 systemd 配置对应）
+sudo git clone https://github.com/yyyywm/Bubbly.git /opt/Bubbly
+cd /opt/Bubbly
+sudo npm ci --omit=dev
 ```
 
 `/etc/systemd/system/bubbly.service`：

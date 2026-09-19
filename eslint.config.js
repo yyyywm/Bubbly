@@ -151,8 +151,8 @@ module.exports = [
     }
   },
   {
-    // 主进程 / preload / 信令服务器 / 测试：CommonJS + Node 环境
-    files: ['src/main/**/*.js', 'src/preload/**/*.js', 'src/server/**/*.js', 'tests/**/*.js'],
+    // 主进程 / preload / 信令服务器 / 测试 / 本地脚本：CommonJS + Node 环境
+    files: ['src/main/**/*.js', 'src/preload/**/*.js', 'src/server/**/*.js', 'tests/**/*.js', 'scripts/**/*.js'],
     languageOptions: {
       ...nodeCommon,
       globals: nodeGlobals
