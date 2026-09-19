@@ -2,6 +2,10 @@
 
 > 双人桌面桌宠应用 — 你和对方各自运行客户端，通过 WebSocket 连接后，对方发送的消息会以气泡形式弹出在桌宠头顶。
 
+[![CI](https://github.com/yyyywm/Bubbly/actions/workflows/ci.yml/badge.svg)](https://github.com/yyyywm/Bubbly/actions/workflows/ci.yml)
+[![Release](https://github.com/yyyywm/Bubbly/actions/workflows/release.yml/badge.svg)](https://github.com/yyyywm/Bubbly/actions/workflows/release.yml)
+[![Release Version](https://img.shields.io/github/v/release/yyyywm/Bubbly?include_prereleases)](https://github.com/yyyywm/Bubbly/releases/latest)
+
 ## 预览
 
 ### 设置面板
@@ -12,7 +16,7 @@
 │   与对方配对，开始聊天     │
 ├──────────────────────────┤
 │ 服务器地址                │
-│ [ws://localhost:8080  ]  │
+│ [wss://your-server.com ] │
 │ 你的昵称                  │
 │ [____________________]   │
 │ 桌宠大小                  │
@@ -52,48 +56,20 @@
 | **勿扰模式** | 🌙 开启后消息暂存，关闭后一次性重放 |
 | **自定义图片** | 支持上传默认状态和收到消息时的自定义桌宠图片 |
 
-## 项目结构
+## 下载安装（推荐）
 
-```
-Bubbly/
-├── src/
-│   ├── main/                    # Electron 主进程
-│   │   ├── index.js             # 入口：单实例锁、app 生命周期、初始化
-│   │   ├── state.js             # 跨模块共享的可变状态（mainWindow/winW 等）
-│   │   ├── windows.js           # 主窗口 + 悬浮输入窗口（创建/定位/销毁）
-│   │   ├── tray.js              # 托盘图标与菜单
-│   │   └── ipc.js               # 全部 ipcMain 通道注册
-│   ├── preload/
-│   │   ├── main.js              # 主窗口 preload
-│   │   └── input-window.js      # 输入窗口 preload
-│   ├── renderer/
-│   │   ├── index.html           # 桌宠 UI
-│   │   ├── styles.css           # 桌宠样式与动画
-│   │   ├── state.js             # DOM 引用与跨模块共享状态（最先加载）
-│   │   ├── settings.js          # 设置读写 localStorage
-│   │   ├── images.js            # 自定义桌宠图片
-│   │   ├── layout.js            # 缩放布局 / 窗口尺寸上报
-│   │   ├── connection.js        # WebSocket 连接、消息分发、自动重连
-│   │   ├── bubble.js            # 气泡队列与动画
-│   │   ├── status.js            # 状态微光条 / 重连提示
-│   │   ├── dnd.js               # 勿扰模式与消息暂存/重放
-│   │   ├── menu.js              # 桌宠右键菜单
-│   │   ├── drag.js              # 桌宠 JS 拖拽
-│   │   ├── index.js             # 入口：事件绑定与初始化（最后加载）
-│   │   └── input-window/
-│   │       ├── index.html       # 独立悬浮输入窗口
-│   │       └── renderer.js      # 输入窗口逻辑
-│   └── server/
-│       ├── index.js             # 入口：ws 服务、启动日志（npm run server）
-│       └── handlers.js          # join / message / dnd-status / leave 处理
-├── assets/
-│   └── tray-icon.png            # 托盘图标
-├── package.json                 # 项目配置与启动脚本
-├── README.md                    # 本文件
-└── AGENTS.md                    # AI Agent 开发约束
-```
+到 [GitHub Releases](https://github.com/yyyywm/Bubbly/releases/latest) 下载对应平台安装包（每次发版由 CI 自动构建）：
 
-## 快速启动
+| 文件 | 说明 |
+|------|------|
+| `Bubbly-Setup-x.y.z.exe` | Windows 安装版（NSIS，可选安装目录，自动创建桌面快捷方式） |
+| `Bubbly-Portable-x.y.z.exe` | Windows 便携版（免安装，双击即用） |
+| `Bubbly-x.y.z-arm64.dmg` | macOS（Apple Silicon） |
+| `Bubbly-x.y.z-x64.dmg` | macOS（Intel） |
+
+> 使用前需要有一台运行信令服务器的机器，见[服务器部署](#服务器部署)。
+
+## 快速启动（开发模式）
 
 ### 1. 安装依赖
 
@@ -128,12 +104,6 @@ npm run server
 npm start
 ```
 
-或：
-
-```bash
-./node_modules/.bin/electron .
-```
-
 ### 4. 配对
 
 1. 窗口打开后显示**设置面板**
@@ -145,9 +115,29 @@ npm start
 |------|-----------|
 | **本机测试** | 双方都填 `ws://localhost:8080` |
 | **局域网** | 连接方填 `ws://服务器IP:8080` |
-| **公网** | 连接方填 `ws://公网IP或域名:8080` |
+| **公网（直连）** | 连接方填 `ws://公网IP或域名:8080` |
+| **公网（TLS）** | 连接方填 `wss://你的域名`（经反向代理，推荐） |
 
 > **注意**：服务器全局最多同时连接 2 人，无需输入房间号，连接即配对。
+
+## 服务器部署
+
+信令服务器极轻（无状态、无数据库，1C1G 云主机即可），支持三种部署方式：
+
+| 方式 | 一句话 |
+|------|--------|
+| **Docker Compose**（推荐） | `git clone` 后 `docker compose up -d` |
+| **GHCR 镜像** | `docker run -d -p 8080:8080 ghcr.io/yyyywm/bubbly-server:latest` |
+| **裸机 systemd** | `npm ci --omit=dev` + systemd 托管 |
+
+完整步骤（端口配置、防火墙、**WSS 反向代理**、安全须知、升级回滚、运维速查）见 **[DEPLOY.md](DEPLOY.md)**。
+
+服务健康状态：
+
+```bash
+curl http://你的服务器:8080/health
+# {"status":"ok","clients":1,"version":"1.0.0","uptime":86400}
+```
 
 ## 操作说明
 
@@ -162,13 +152,70 @@ npm start
 | **双击状态灯** | 返回设置面板 / 立即重连 |
 | **托盘心形图标右键** | 重启应用 / 退出 |
 
+## 项目结构
+
+```
+Bubbly/
+├── src/
+│   ├── main/                    # Electron 主进程
+│   │   ├── index.js             # 入口：单实例锁、app 生命周期、初始化
+│   │   ├── state.js             # 跨模块共享的可变状态（mainWindow/winW 等）
+│   │   ├── windows.js           # 主窗口 + 悬浮输入窗口（创建/定位/销毁）
+│   │   ├── tray.js              # 托盘图标与菜单
+│   │   └── ipc.js               # 全部 ipcMain 通道注册
+│   ├── preload/
+│   │   ├── main.js              # 主窗口 preload
+│   │   └── input-window.js      # 输入窗口 preload
+│   ├── renderer/
+│   │   ├── index.html           # 桌宠 UI
+│   │   ├── styles.css           # 桌宠样式与动画
+│   │   ├── state.js             # DOM 引用与跨模块共享状态（最先加载）
+│   │   ├── settings.js          # 设置读写 localStorage
+│   │   ├── images.js            # 自定义桌宠图片
+│   │   ├── layout.js            # 缩放布局 / 窗口尺寸上报
+│   │   ├── connection.js        # WebSocket 连接、消息分发、自动重连
+│   │   ├── bubble.js            # 气泡队列与动画
+│   │   ├── status.js            # 状态微光条 / 重连提示
+│   │   ├── dnd.js               # 勿扰模式与消息暂存/重放
+│   │   ├── menu.js              # 桌宠右键菜单
+│   │   ├── drag.js              # 桌宠 JS 拖拽
+│   │   ├── index.js             # 入口：事件绑定与初始化（最后加载）
+│   │   └── input-window/
+│   │       ├── index.html       # 独立悬浮输入窗口
+│   │       └── renderer.js      # 输入窗口逻辑
+│   └── server/
+│       ├── index.js             # 入口：ws 服务、/health 健康检查（npm run server）
+│       └── handlers.js          # join / message / dnd-status / leave 处理
+├── tests/
+│   └── server/                  # 服务端单元测试 + 端到端集成测试
+├── build/                       # 打包图标（icon.png / icon.ico，由脚本生成）
+├── scripts/
+│   └── generate-icons.ps1       # 品牌图标生成脚本（npm run icons）
+├── .github/workflows/
+│   ├── ci.yml                   # 持续集成：lint + 测试矩阵
+│   └── release.yml              # 发布流水线：打 tag 自动出安装包与镜像
+├── assets/
+│   └── tray-icon.png            # 托盘图标
+├── Dockerfile                   # 信令服务器生产镜像
+├── docker-compose.yml           # 云端部署编排
+├── eslint.config.js             # ESLint 配置
+├── DEPLOY.md                    # 云端部署指南
+├── CHANGELOG.md                 # 版本变更记录
+├── docs/RELEASE.md              # 版本发布流程
+├── AGENTS.md                    # AI Agent 开发约束
+└── package.json                 # 项目配置与启动脚本
+```
+
 ## 项目配置
 
-### 服务器端口（`src/server/index.js` 的 `PORT`）
+### 服务器端口（环境变量 `PORT`）
 
-```js
-const PORT = 8080;  // 修改为其他端口
+```bash
+PORT=9000 npm run server          # 本地
+BUBBLY_PORT=9000 docker compose up -d   # Docker（宿主机映射端口）
 ```
+
+不设置时默认 `8080`。
 
 ### 窗口初始尺寸（`src/main/state.js` 的 `winW` / `winH`）
 
@@ -191,55 +238,43 @@ setTimeout(() => { /* 淡出 */ }, 2500);  // 2.5 秒
 setTimeout(() => { /* 清理 */ }, 2850);  // 淡出动画 0.35s 后清理
 ```
 
-## 局域网 / 公网部署
+## 研发与质量
 
-### 局域网
+### 常用命令
 
-1. 查看本机局域网 IP：
-   ```bash
-   ipconfig  # Windows
-   ifconfig  # macOS/Linux
-   ```
-2. 连接方在设置面板填写：`ws://192.168.x.x:8080`
+| 命令 | 说明 |
+|------|------|
+| `npm test` | 运行服务端单元测试 + 端到端集成测试 |
+| `npm run lint` | ESLint 代码检查 |
+| `npm run dist` | 打包 Windows 安装版 + 便携版 |
+| `npm run dist:mac` | 打包 macOS DMG |
+| `npm run dist:dir` | 仅输出免安装目录（快速验证打包） |
+| `npm run icons` | 重新生成应用品牌图标 |
 
-### 公网
+### 研发 → 测试 → 上线流程
 
-1. 确保服务器所在机器有公网 IP 或域名
-2. 路由器配置端口转发（8080 → 服务器内网 IP）
-3. 连接方填写：`ws://公网IP:8080`
-
-### 云服务器（推荐）
-
-在云服务器（如阿里云 / AWS）上运行服务器，双方都连接公网 IP 即可。
-
-```bash
-# 服务器端
-npm run server
-
-# 客户端填写
-ws://云服务器公网IP:8080
 ```
+feature 分支 ──PR──▶ main（CI 门禁：lint + 测试矩阵）
+                          │
+                    更新 CHANGELOG + npm version 打 v* 标签
+                          │
+                 Release 流水线（先过门禁，再自动构建）
+                  ├── 客户端安装包 → GitHub Release 草稿 → 人工验证后 Publish
+                  └── 服务器镜像   → GHCR → 按 DEPLOY.md 升级服务器
+```
+
+详细规范见 **[docs/RELEASE.md](docs/RELEASE.md)**（版本号规则、标准发布步骤、热修、回滚）。
 
 ## 打包发布
 
-### macOS (.dmg)
-
 ```bash
-npx electron-builder --mac
+npm run dist        # Windows：dist/Bubbly-Setup-x.y.z.exe + Bubbly-Portable-x.y.z.exe
+npm run dist:mac    # macOS：dist/Bubbly-x.y.z-*.dmg
 ```
 
-### Windows (.exe)
+正式版本发布**无需手动打包**：推送 `v*` 标签后 CI 自动构建所有平台产物并上传 GitHub Release，流程见 [docs/RELEASE.md](docs/RELEASE.md)。
 
-```bash
-npx electron-builder --win
-```
-
-> 打包后客户端仍需服务器在运行，启动后填写服务器地址即可。
-
-## 开发调试
-
-- **查看控制台日志**：终端运行 `npm start` 可见主进程日志
-- **页面调试**：`npm start` 后使用 [Electron DevTools](https://www.electronjs.org/docs/latest/api/devtools-extension)
+> 打包后客户端仍需信令服务器在线，启动后填写服务器地址即可。
 
 ## 技术栈
 
@@ -249,6 +284,10 @@ npx electron-builder --win
 | **WebSocket (ws)** | 实时双向通信 |
 | **纯 CSS** | 桌宠造型与动画，无需图片资源 |
 | **IPC 通信** | 主进程与渲染进程控制窗口行为 |
+| **node:test** | 单元与集成测试（Node 原生，零测试框架依赖） |
+| **ESLint 10** | 代码静态检查 |
+| **GitHub Actions** | CI 门禁与自动化发布 |
+| **Docker** | 信令服务器云端交付 |
 
 ## 通信协议
 
@@ -298,9 +337,10 @@ y: 300,  // 屏幕顶部偏移
 
 ### Q5: 服务器连接失败？
 
-1. 确认服务器正在运行：终端看到启动日志
-2. macOS 防火墙可能拦截 8080 端口：系统设置 → 网络 → 防火墙 → 允许
+1. 确认服务器正在运行：`curl http://服务器:8080/health` 应返回 JSON
+2. 云服务器检查安全组/防火墙是否放行对应端口
 3. 局域网时确认双方在同一网络，IP 地址正确
+4. 填写 `wss://` 时确认反向代理已正确配置（见 DEPLOY.md）
 
 ### Q6: 如何同时运行两个客户端？
 
@@ -317,13 +357,11 @@ npm start
 **Windows:**
 ```powershell
 Get-Process electron | Stop-Process
-Get-Process node | Where-Object { $_.CommandLine -like "*src/server/index.js*" } | Stop-Process
 ```
 
 **macOS/Linux:**
 ```bash
 pkill -f "electron"
-pkill -f "node src/server/index.js"
 ```
 
 或点击系统托盘 ❤ 图标 → 右键 → 退出
@@ -332,4 +370,4 @@ pkill -f "node src/server/index.js"
 
 ## License
 
-MIT © 2025 Bubbly
+MIT © 2025-2026 Bubbly
