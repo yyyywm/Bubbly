@@ -20,7 +20,8 @@ function saveCustomImages() {
   } catch (e) {
     console.warn('保存自定义图片失败:', e);
     // localStorage 空间不足时清除最大项
-    if (e instanceof QuotaExceededError) {
+    // （Chromium 无 QuotaExceededError 构造器，通过 name 判断）
+    if (e.name === 'QuotaExceededError') {
       if (customImages['default'] && customImages['message']) {
         const dLen = customImages['default'].length;
         const mLen = customImages['message'].length;
