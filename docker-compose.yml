@@ -1,0 +1,25 @@
+# ============================================================
+#  Bubbly 信令服务器 · Docker Compose 部署编排
+# ============================================================
+#  启动:   docker compose up -d
+#  日志:   docker compose logs -f
+#  升级:   docker compose pull && docker compose up -d
+#  端口:   默认 8080，可通过环境变量覆盖: BUBBLY_PORT=9000 docker compose up -d
+# ============================================================
+
+services:
+  bubbly-server:
+    build: .
+    image: bubbly-server:local
+    container_name: bubbly-server
+    restart: unless-stopped
+    ports:
+      - "${BUBBLY_PORT:-8080}:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

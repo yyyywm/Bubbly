@@ -1,0 +1,23 @@
+# 构建上下文只保留服务器运行所需文件，加速构建并避免泄露
+node_modules
+dist
+out
+build
+tests
+docs
+.github
+.git
+.idea
+.vscode
+assets
+src/main
+src/preload
+src/renderer
+eslint.config.js
+Dockerfile
+docker-compose.yml
+.gitignore
+.dockerignore
+*.md
+*.log
+nul
