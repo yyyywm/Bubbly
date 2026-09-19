@@ -95,4 +95,4 @@ git rm <文件名>
 
 项目已配置 `commit-msg` 钩子（位于 `.githooks/commit-msg`），不符合上述格式的消息会被自动拒绝。请先修改消息再重新提交。
 
-完整规范文档见 `COMMIT_GUIDELINES.md`。
+版本发布与上线流程见 `docs/RELEASE.md`。
