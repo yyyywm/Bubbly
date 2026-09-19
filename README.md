@@ -258,9 +258,9 @@ setTimeout(() => { /* 清理 */ }, 2850);  // 淡出动画 0.35s 后清理
 ```
 feat/fix 分支 ──PR──▶ develop（CI 门禁：lint + 测试矩阵）
                           │
-                    人工审核通过，PR 合入 main
+                    develop 整理 CHANGELOG，人工审核后 PR 合入 main
                           │
-                 main 上更新 CHANGELOG + npm version 打 v* 标签
+                    main 上 npm version 打 v* 标签
                           │
                  Release 流水线（先过门禁，再自动构建）
                   ├── 客户端安装包 → GitHub Release 草稿 → 人工验证后 Publish
