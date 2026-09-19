@@ -253,17 +253,21 @@ setTimeout(() => { /* 清理 */ }, 2850);  // 淡出动画 0.35s 后清理
 
 ### 研发 → 测试 → 上线流程
 
+分支模型：`develop` 为默认开发分支；`main` 为稳定发布分支，**禁止直接 push**，只能由 develop 经"CI 全绿 + 人工审核"后合并进入；版本标签只从 main 打出。
+
 ```
-feature 分支 ──PR──▶ main（CI 门禁：lint + 测试矩阵）
+feat/fix 分支 ──PR──▶ develop（CI 门禁：lint + 测试矩阵）
                           │
-                    更新 CHANGELOG + npm version 打 v* 标签
+                    人工审核通过，PR 合入 main
+                          │
+                 main 上更新 CHANGELOG + npm version 打 v* 标签
                           │
                  Release 流水线（先过门禁，再自动构建）
                   ├── 客户端安装包 → GitHub Release 草稿 → 人工验证后 Publish
                   └── 服务器镜像   → GHCR → 按 DEPLOY.md 升级服务器
 ```
 
-详细规范见 **[docs/RELEASE.md](docs/RELEASE.md)**（版本号规则、标准发布步骤、热修、回滚）。
+详细规范见 **[docs/RELEASE.md](docs/RELEASE.md)**（版本号规则、标准发布步骤、热修、回滚），分支与版本约束见 **[AGENTS.md](AGENTS.md)**。
 
 ## 打包发布
 
