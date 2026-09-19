@@ -52,15 +52,55 @@ test: 新增 peer-joined 测试用例
 
 ---
 
-## 3. 提交后必须 push
+## 3. 分支管理规范（强制）
+
+| 分支 | 用途 | 保护级别 |
+|------|------|----------|
+| `main` | 稳定发布分支，所有版本标签只从 main 打出 | **禁止直接 push，禁止未经审核的改动** |
+| `develop` | 默认开发分支，日常开发与功能集成在此进行 | 可 push |
+| `feat/*` / `fix/*` | 单个功能或修复的开发分支，从 develop 切出，完成后合回 develop | 本地使用 |
+
+**规则：**
+
+1. **默认一律在 `develop` 分支开发**；较大或风险较高的改动从 develop 切出 `feat/xxx` 分支，完成后合回 develop。
+2. **未经以下完整流程，绝不允许改动远程 `main`**：
+   1. develop 上 CI 全绿（lint + 全部测试通过）；
+   2. 人工审核确认；
+   3. 通过 PR 或审核确认后的显式合并操作合入 main。
+3. 版本发布标签（`v*`）**只允许打在 main 上**，develop 上禁止打发布标签。
+4. 线上紧急修复：从 main 切出 `hotfix/*` → 修复 → 合回 main（随后发布），**并同步合回 develop**。
+5. 提交后必须 push 到**当前开发分支**（见第 5 节），而非 main。
+6. 每次开发前先 `git checkout develop && git pull` 确认在最新 develop 上工作。
+
+---
+
+## 4. 版本与变更日志规范（强制）
+
+- **版本号唯一真源**是 `package.json` 的 `version` 字段，遵循 [SemVer](https://semver.org/lang/zh-CN/)（`主.次.修`）：
+  - `patch`：bug 修复，不影响功能
+  - `minor`：向后兼容的新功能
+  - `major`：不兼容的协议/配置变更
+- 当前版本基线：**v1.0.0**（2026-09-19 发布）。
+- `CHANGELOG.md` 必须与版本同步维护：
+  - 任何功能性改动（feat/fix/perf/refactor）合入 develop 前，先在 `CHANGELOG.md` 的 `[Unreleased]` 段登记，按 Added / Changed / Fixed / Removed 分类；
+  - 发布时把 `[Unreleased]` 改为对应版本号与日期；**不允许出现"版本已发布但日志缺失"**；
+  - 纯文档/CI 改动可不登记。
+- **三处一致性**强制校验，发布前缺一不可：`package.json` 的 `version` = 最新 `v*` 标签 = CHANGELOG 最新版本段。
+- 详细发布操作步骤见 `docs/RELEASE.md`。
+
+---
+
+## 5. 提交后必须 push
 
 ```bash
 git push
 ```
 
+推送到当前开发分支（develop 或 feature 分支），**不要**为了"同步"而直接 push main。
+
 ---
 
-## 4. 禁止遗留临时/测试文件（强制）
+## 6. 禁止遗留临时/测试文件（强制）
 
 **完成开发后，必须清理所有临时文件、调试脚本、测试页面和残留产物，不得将其提交到 git。**
 
@@ -91,8 +131,10 @@ git rm <文件名>
 
 ---
 
-## 5. 违反后果
+## 7. 违反后果
 
 项目已配置 `commit-msg` 钩子（位于 `.githooks/commit-msg`），不符合上述格式的消息会被自动拒绝。请先修改消息再重新提交。
+
+违反分支管理规范（未经审核改动 main）或版本/日志规范的行为，等同于破坏发布基线，必须在合入前纠正。
 
 版本发布与上线流程见 `docs/RELEASE.md`。
