@@ -128,7 +128,7 @@ function registerIpcHandlers() {
         positionInputWindow();
         S.inputWindow.focus();
         S.inputWindow.webContents.send('input-window-clear');
-      } catch (_) { /* window in bad state */ }
+      } catch { /* window in bad state */ }
       return;
     }
 

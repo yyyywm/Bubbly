@@ -106,7 +106,7 @@ function positionInputWindow() {
 
 function cleanupInputWindow() {
   if (S.inputWindow) {
-    try { S.inputWindow.destroy(); } catch (_) { /* window already closed */ }
+    try { S.inputWindow.destroy(); } catch { /* window already closed */ }
     S.inputWindow = null;
   }
 }
