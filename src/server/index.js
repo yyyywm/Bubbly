@@ -91,7 +91,7 @@ wss.on('connection', (ws, req) => {
     let msg;
     try {
       msg = JSON.parse(rawData.toString());
-    } catch (e) {
+    } catch {
       ws.send(JSON.stringify({ type: 'error', msg: '无效的消息格式' }));
       return;
     }

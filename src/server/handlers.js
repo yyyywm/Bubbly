@@ -171,8 +171,10 @@ function handleLeave(ws, msg, userId, onLeft) {
 
 /**
  * 从连接列表中移除用户
+ * @param {string} userId 要移除的用户ID
+ * @param {_ws} _ws 保留参数：与原 server.js 签名一致，当前未使用
  */
-function leaveRoom(userId, ws) {
+function leaveRoom(userId, _ws) {
   const index = clients.findIndex(c => c.id === userId);
   if (index !== -1) {
     clients.splice(index, 1);
