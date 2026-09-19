@@ -3,15 +3,23 @@
   "version": "1.0.0",
   "description": "Bubbly - A desktop pet app for couples to chat through love bubbles",
   "main": "src/main/index.js",
+  "private": true,
   "scripts": {
     "start": "electron .",
     "server": "node src/server/index.js",
     "test": "node --test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "dist": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:dir": "electron-builder --dir",
+    "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ywmywmywm/bubbly.git"
+    "url": "https://github.com/yyyywm/Bubbly.git"
   },
   "keywords": [
     "desktop-pet",
@@ -34,17 +42,53 @@
   "build": {
     "appId": "com.bubbly.app",
     "productName": "Bubbly",
-    "mac": {
-      "category": "public.app-category.entertainment",
-      "target": "dmg"
-    },
-    "win": {
-      "target": "nsis"
+    "copyright": "Copyright © 2026 yyyywm",
+    "directories": {
+      "output": "dist"
     },
     "files": [
       "src/**",
       "assets/**",
       "package.json"
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "yyyywm",
+      "repo": "Bubbly"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "artifactName": "Bubbly-Setup-${version}.${ext}",
+      "shortcutName": "Bubbly"
+    },
+    "portable": {
+      "artifactName": "Bubbly-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    }
   }
 }
