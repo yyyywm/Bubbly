@@ -4,6 +4,11 @@
 变更记录格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 发布流程见 [`docs/RELEASE.md`](docs/RELEASE.md)。
 
+## [Unreleased]
+
+暂无。功能性改动（feat/fix/perf/refactor）合入 develop 前在此登记，
+分类使用 Added / Changed / Fixed / Removed（规范见 AGENTS.md 第 4 节）。
+
 ## [1.0.0] - 2026-09-19
 
 首个正式版本：双人桌宠传信应用，客户端 + 信令服务器 + 完整研发发布基础设施。
