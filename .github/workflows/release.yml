@@ -96,15 +96,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 计算小写镜像名
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-server" >> "$GITHUB_OUTPUT"
+
       - name: 生成镜像标签
         uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}-server
+          images: ${{ steps.img.outputs.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=latest
+          flavor: |
+            latest=auto
 
       - name: 构建并推送镜像
         uses: docker/build-push-action@v6
