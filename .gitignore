@@ -17,3 +17,6 @@ nul
 # IDE 工作区
 .idea/
 .vscode/
+
+# 自动部署监听器的真实环境配置（含 WEBHOOK_SECRET，禁止提交）
+deploy/webhook.env

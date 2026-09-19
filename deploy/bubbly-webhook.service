@@ -1,0 +1,39 @@
+# ============================================================
+#  Bubbly 自动部署 Webhook 监听器 · systemd 单元
+# ============================================================
+#  安装（服务器仓库目录以 /opt/Bubbly 为例）：
+#    sudo cp deploy/bubbly-webhook.service /etc/systemd/system/
+#    sudo cp deploy/webhook.env.example /opt/Bubbly/deploy/webhook.env
+#    sudo chmod 600 /opt/Bubbly/deploy/webhook.env   # 填入 WEBHOOK_SECRET
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now bubbly-webhook
+#
+#  日志:   journalctl -u bubbly-webhook -f
+#  状态:   systemctl status bubbly-webhook
+#  自检:   curl http://127.0.0.1:9000/health
+#
+#  说明：
+#  - 未指定 User=，以 root 运行：需要写仓库目录（git reset --hard）
+#    并调用宿主机 docker CLI 重建容器。
+#  - 监听器必须在宿主机运行，不能放进 bubbly-server 容器内。
+# ============================================================
+
+[Unit]
+Description=Bubbly GitHub Webhook 自动部署监听器
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/Bubbly
+EnvironmentFile=/opt/Bubbly/deploy/webhook.env
+ExecStart=/usr/bin/node /opt/Bubbly/scripts/deploy-webhook.js
+Restart=on-failure
+RestartSec=3
+
+# 基础安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
