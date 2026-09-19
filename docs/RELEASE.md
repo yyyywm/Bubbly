@@ -48,7 +48,7 @@ feat/fix 分支 ──PR──▶ develop ──CI 门禁──▶ 合并
    ```bash
    git checkout -b feat/message-preview
    ```
-3. 提交信息遵循 Conventional Commits（见 `AGENTS.md`，commit-msg 钩子强制校验）：
+3. 提交信息遵循 Conventional Commits（见 `AGENTS.md`，由人工审核把关）：
    ```
    feat(renderer): 添加消息预览
    fix(server): 修复断线后未清理房间
