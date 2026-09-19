@@ -6,8 +6,9 @@
 
 ## [Unreleased]
 
-暂无。功能性改动（feat/fix/perf/refactor）合入 develop 前在此登记，
-分类使用 Added / Changed / Fixed / Removed（规范见 AGENTS.md 第 4 节）。
+### Added
+
+- 本地联调：`npm run start:pair` 一条命令同时启动信令服务器与两个客户端，关闭窗口或 Ctrl+C 自动清理全部进程
 
 ## [1.0.0] - 2026-09-19
 

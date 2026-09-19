@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "start:pair": "node scripts/dev-pair.js",
     "server": "node src/server/index.js",
     "test": "node --test",
     "lint": "eslint .",
