@@ -141,6 +141,12 @@ sudo chmod 600 deploy/webhook.env
 sudo nano deploy/webhook.env   # 将生成的密钥填入 WEBHOOK_SECRET
 ```
 
+**监听端口可自定义**：`webhook.env` 中的 `WEBHOOK_PORT` 决定监听端口（默认 `9000`，本文档以默认值为例）。如需修改，改完记得同步三处：
+
+1. `sudo systemctl restart bubbly-webhook` 使配置生效；
+2. 云安全组 / 防火墙放行的端口；
+3. 第 4 步 GitHub Payload URL 中的端口号。
+
 ### 3. 安装监听器的 systemd 服务
 
 ```bash
@@ -148,7 +154,7 @@ sudo cp deploy/bubbly-webhook.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now bubbly-webhook
 
-# 自检：监听器存活
+# 自检：监听器存活（端口号以你的 WEBHOOK_PORT 为准）
 curl http://127.0.0.1:9000/health
 # {"ok":true,"deploying":false,"pending":false,"lastDeploy":null}
 ```
@@ -159,7 +165,7 @@ curl http://127.0.0.1:9000/health
 
 | 配置项 | 填写值 |
 |--------|--------|
-| Payload URL | `http://<服务器公网IP>:9000/webhook` |
+| Payload URL | `http://<服务器公网IP>:<WEBHOOK_PORT>/webhook`（如默认 9000） |
 | Content type | `application/json` |
 | Secret | 与 `deploy/webhook.env` 中 `WEBHOOK_SECRET` **完全一致** |
 | SSL verification | 直连 IP + http 时选 **Disable**（套反向代理后可启用，见下） |
@@ -170,12 +176,12 @@ curl http://127.0.0.1:9000/health
 
 ### 5. 放行端口（注意收敛来源）
 
-在云厂商安全组放行 TCP `9000`。该端口只应被 GitHub 访问，两种收敛方式任选：
+在云厂商安全组放行 TCP `9000`（即你的 `WEBHOOK_PORT`）。该端口只应被 GitHub 访问，两种收敛方式任选：
 
 - **按来源 IP 放行**：仅对 GitHub Webhook 来源网段放行（列表见
   `https://api.github.com/meta` 返回 JSON 的 `hooks` 字段）；
-- **走反向代理**：由 Caddy/Nginx 在 443 上转发 `/webhook` 到 `127.0.0.1:9000`，
-  安全组不放行 9000（顺带解决 SSL verification 问题）。
+- **走反向代理**：由 Caddy/Nginx 在 443 上转发 `/webhook` 到 `127.0.0.1:<WEBHOOK_PORT>`，
+  安全组不放行监听端口（顺带解决 SSL verification 问题）。
 
 ### 6. 工作流程与验证
 
