@@ -5,13 +5,14 @@
  *  运行: npm run webhook
  *
  *  部署在服务器【宿主机】上的轻量监听服务（零依赖，仅 Node 内置模块）。
- *  必须跑在宿主机而非容器内：它需要操作宿主机的仓库目录与 Docker。
+ *  必须跑在宿主机而非容器内：它需要操作宿主机的仓库目录与进程管理器
+ *  （Docker / PM2 / systemctl，取决于部署方式）。
  *
  *  工作流程（GitHub push 到跟踪分支时自动触发）：
  *    1. 校验 X-Hub-Signature-256 签名（HMAC-SHA256，防伪造请求）
  *    2. 仅响应 push 事件且分支为 WEBHOOK_BRANCH（默认 main），其余忽略
  *    3. git fetch origin <branch> && git reset --hard origin/<branch>
- *    4. docker compose up -d --build（重建镜像并重启容器）
+ *    4. 重启服务（默认 docker compose up -d --build，可用 WEBHOOK_DEPLOY_CMD 替换）
  *    5. 轮询 /health 直到新版本就绪
  *
  *  部署请求先回 202 再后台执行（GitHub 仅要求 10 秒内响应）；
@@ -23,7 +24,10 @@
  *    BUBBLY_DIR          仓库目录，默认脚本所在仓库根目录
  *    WEBHOOK_BRANCH      跟踪分支，默认 main
  *    WEBHOOK_HEALTH_URL  部署后健康检查地址，默认 http://127.0.0.1:8080/health
- *    WEBHOOK_DEPLOY_CMD  覆盖默认部署命令（如裸机 systemd 场景，高级用法）
+ *    WEBHOOK_DEPLOY_CMD  覆盖默认部署命令（无 Docker 场景：宝塔/PM2/裸机 systemd）
+ *                        执行时额外注入 DEPLOY_OLD_COMMIT / DEPLOY_NEW_COMMIT
+ *                        环境变量，便于按变更范围条件执行
+ *                        （如 lockfile 变化才 npm ci）
  * ============================================================
  */
 
@@ -161,11 +165,17 @@ function runCommand(file, args, options = {}) {
 
 /** 经 shell 执行自定义部署命令（仅在配置了 WEBHOOK_DEPLOY_CMD 时使用） */
 function runShellCommand(command, options = {}) {
-  const { cwd, timeoutMs = 600000 } = options;
+  const { cwd, timeoutMs = 600000, env } = options;
   return new Promise((resolve, reject) => {
     exec(
       command,
-      { cwd, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
+      {
+        cwd,
+        timeout: timeoutMs,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: 'utf8',
+        env: env || process.env
+      },
       (err, stdout, stderr) => {
         if (err) {
           err.message = `\`${command}\` 失败: ${err.message}${
@@ -242,7 +252,17 @@ function createDeployer(config, deps = {}) {
 
     if (config.deployCmd) {
       log(`执行自定义部署命令: ${config.deployCmd}`);
-      await runShell(config.deployCmd, { cwd: config.repoDir, timeoutMs: 600000 });
+      // 注入新旧提交号，便于命令内按变更范围条件执行（如 lockfile 变化才 npm ci）
+      const deployEnv = {
+        ...process.env,
+        DEPLOY_OLD_COMMIT: localHead,
+        DEPLOY_NEW_COMMIT: remoteHead
+      };
+      await runShell(config.deployCmd, {
+        cwd: config.repoDir,
+        timeoutMs: 600000,
+        env: deployEnv
+      });
     } else {
       log('重建并重启容器: docker compose up -d --build');
       await run('docker', ['compose', 'up', '-d', '--build'], {
