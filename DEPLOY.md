@@ -108,6 +108,9 @@ sudo systemctl enable --now bubbly
 systemctl status bubbly
 ```
 
+> 宝塔面板用户：可用「PM2 管理器 / Node 项目」托管同一启动文件
+> `src/server/index.js`（环境变量 `PORT=8080`），无需手写 systemd 单元。
+
 ---
 
 ## 自动部署：GitHub Webhook（push main 自动拉取并重启）
@@ -115,7 +118,8 @@ systemctl status bubbly
 > 依托**方式一（Docker Compose）**：在宿主机上运行一个零依赖的 Node 监听器
 > [`scripts/deploy-webhook.js`](scripts/deploy-webhook.js)。GitHub 仓库 `main`
 > 收到 push 时，监听器自动完成"拉取代码 → 重建镜像 → 重启容器 → 健康检查"，
-> 全程无需登录服务器。裸机 systemd 部署同样适用（见第 7 步自定义命令）。
+> 全程无需登录服务器。不用 Docker 的场景（宝塔面板 / PM2 / 裸机 systemd）
+> 同样适用（见第 7、8 步）。
 
 ### 1. 前置条件
 
@@ -204,24 +208,62 @@ push 到 `main` 后，监听器自动执行（`journalctl -u bubbly-webhook -f` 
   不会并发执行两个部署；
 - **幂等**：远端无新提交时仅做 fetch 比对，跳过重建。
 
-### 7. 自定义部署命令（可选）
+### 7. 自定义部署命令（无 Docker 场景）
 
-监听器默认执行 `docker compose up -d --build`。在 `webhook.env` 中设置
-`WEBHOOK_DEPLOY_CMD` 可整条替换，例如裸机 systemd 部署：
+监听器默认执行 `docker compose up -d --build`。不用 Docker（宝塔面板 / PM2 /
+裸机 systemd）时，在 `webhook.env` 中设置 `WEBHOOK_DEPLOY_CMD` 整条替换。
+
+执行自定义命令时，监听器额外注入两个环境变量，便于按变更范围条件执行：
+
+| 变量 | 含义 |
+|------|------|
+| `DEPLOY_OLD_COMMIT` | 部署前的本地提交号 |
+| `DEPLOY_NEW_COMMIT` | 本次同步到的远端提交号 |
 
 ```bash
+# 宝塔面板 / PM2 直跑：lockfile 变化才重装依赖，然后重启服务进程
+# （pm2 restart 后的项目名须与面板中 Node 项目名一致）
+WEBHOOK_DEPLOY_CMD=git diff --quiet "$DEPLOY_OLD_COMMIT" "$DEPLOY_NEW_COMMIT" -- package-lock.json || npm ci --omit=dev; pm2 restart bubbly-server
+
+# 裸机 systemd（监听器以 root 运行，systemctl 无需 sudo）
 WEBHOOK_DEPLOY_CMD=npm ci --omit=dev && systemctl restart bubbly
 ```
 
-> 监听器默认以 root 运行（见 `deploy/bubbly-webhook.service` 注释），
-> 直接调用 `systemctl` 无需 sudo。
+### 8. 宝塔面板 / PM2 直跑配置（可选）
 
-### 8. 常见问题
+不使用 Docker 与 systemd 单元时，宝塔面板的 Node 项目（底层为 PM2）可直接
+托管信令服务器与 webhook 监听器两个进程：
+
+1. **安装 Node 环境**：软件商店安装「PM2 管理器」或「Node.js 版本管理器」，
+   选择 Node >= 18；
+2. **拉取代码**：`git clone` 仓库到如 `/www/wwwroot/Bubbly`，执行
+   `npm ci --omit=dev`；
+3. **添加信令服务器项目**：启动文件 `src/server/index.js`，端口 `8080`，
+   项目名建议 `bubbly-server`；
+4. **添加 webhook 监听器项目**：启动文件 `scripts/deploy-webhook.js`，
+   环境变量按下表配置：
+
+   | 变量 | 值 |
+   |------|-----|
+   | `WEBHOOK_SECRET` | `openssl rand -hex 32` 生成的密钥（与 GitHub Webhook 一致） |
+   | `WEBHOOK_PORT` | 监听端口，如 `9000` |
+   | `WEBHOOK_DEPLOY_CMD` | 见第 7 步 PM2 示例（项目名须与第 3 步一致） |
+
+   PM2 负责进程守护（崩溃自动重启），开机自启在 PM2 管理器中开启；
+5. **放行端口**：面板「安全」中放行监听端口（建议配合第 5 步的来源收敛），
+   GitHub Webhook 配置与第 4 步相同。监听器日志用 `pm2 logs bubbly-webhook`
+   或面板中的项目日志查看。
+
+> ⚠ 监听器脚本自身有更新时（本次同步到了新版 `deploy-webhook.js`），需在
+> 面板手动重启一次该 Node 项目——运行中的进程不会自我替换，这是刻意的，
+> 避免部署执行到一半把自己杀掉。
+
+### 9. 常见问题
 
 | 现象 | 原因与处理 |
 |------|-----------|
-| Webhook 页面 401 | `webhook.env` 的 Secret 与 GitHub 配置不一致；改后 `sudo systemctl restart bubbly-webhook` |
-| 页面 ✓ 但服务没更新 | 部署是后台执行的，看 `journalctl -u bubbly-webhook -f`：可能构建失败或健康检查超时 |
+| Webhook 页面 401 | `webhook.env` 的 Secret 与 GitHub 配置不一致；改后重启监听器（`sudo systemctl restart bubbly-webhook`，宝塔/PM2 场景在面板重启项目） |
+| 页面 ✓ 但服务没更新 | 部署是后台执行的，看监听器日志（`journalctl -u bubbly-webhook -f` 或 `pm2 logs bubbly-webhook`）：可能构建失败或健康检查超时 |
 | 返回 ignored | 非 push 事件或非 `main` 分支，属预期过滤 |
 | 健康检查 60 秒未通过 | 容器可能起在了其他端口，核对 `WEBHOOK_HEALTH_URL` 与 `BUBBLY_PORT` |
 
