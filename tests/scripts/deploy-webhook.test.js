@@ -214,6 +214,7 @@ describe('createDeployer', () => {
   test('配置 WEBHOOK_DEPLOY_CMD 时改走 shell 命令而非 docker compose', async () => {
     const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111']);
     const shells = [];
+    let shellOpts = null;
     const deploy = createDeployer(
       loadConfig({
         WEBHOOK_SECRET: 's',
@@ -221,15 +222,22 @@ describe('createDeployer', () => {
         WEBHOOK_DEPLOY_CMD: 'npm ci --omit=dev'
       }),
       {
-      run,
-      runShell: async (cmd) => { shells.push(cmd); },
-      checkHealth: async () => true,
-      pollHealth: async (_url, check) => check('unused')
-    });
+        run,
+        runShell: async (cmd, opts) => {
+          shells.push(cmd);
+          shellOpts = opts;
+        },
+        checkHealth: async () => true,
+        pollHealth: async (_url, check) => check('unused')
+      }
+    );
 
     await deploy();
     assert.deepEqual(shells, ['npm ci --omit=dev']);
     assert.ok(!calls.some((c) => c[0] === 'docker'), '不应调用 docker compose');
+    // 注入新旧提交号，便于命令内按变更范围条件执行
+    assert.equal(shellOpts.env.DEPLOY_OLD_COMMIT, 'aaaa000');
+    assert.equal(shellOpts.env.DEPLOY_NEW_COMMIT, 'bbbb111');
   });
 
   test('健康检查未通过：部署结果标记 healthy: false', async () => {
