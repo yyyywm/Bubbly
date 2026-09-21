@@ -10,7 +10,7 @@
 #
 #  日志:   journalctl -u bubbly-webhook -f
 #  状态:   systemctl status bubbly-webhook
-#  自检:   curl http://127.0.0.1:9000/health
+#  自检:   curl http://127.0.0.1:9000/health   # 端口以 webhook.env 的 WEBHOOK_PORT 为准
 #
 #  说明：
 #  - 未指定 User=，以 root 运行：需要写仓库目录（git reset --hard）
