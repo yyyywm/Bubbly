@@ -11,9 +11,9 @@
  *  工作流程（GitHub push 到跟踪分支时自动触发）：
  *    1. 校验 X-Hub-Signature-256 签名（HMAC-SHA256，防伪造请求）
  *    2. 仅响应 push 事件且分支为 WEBHOOK_BRANCH（默认 main），其余忽略
- *    3. git fetch origin <branch> && git reset --hard origin/<branch>
+ *    3. git fetch origin <branch>，提交变化时 reset --hard 到远端提交
  *    4. 重启服务（默认 docker compose up -d --build，可用 WEBHOOK_DEPLOY_CMD 替换）
- *    5. 轮询 /health 直到新版本就绪
+ *    5. 轮询 /health，成功后记录已部署提交；失败时后续推送可重试
  *
  *  部署请求先回 202 再后台执行（GitHub 仅要求 10 秒内响应）；
  *  部署进行中再次收到 push 会排队，完成后自动补跑一次（合并连续推送）。
@@ -241,14 +241,27 @@ function createDeployer(config, deps = {}) {
     await run('git', ['fetch', 'origin', config.branch, '--prune'], gitOpts);
     const localHead = await run('git', ['rev-parse', 'HEAD'], gitOpts);
     const remoteHead = await run('git', ['rev-parse', `origin/${config.branch}`], gitOpts);
-
-    if (localHead === remoteHead) {
-      log(`已是最新 (${localHead.slice(0, 7)})，跳过重建`);
-      return { updated: false, commit: localHead };
+    // HEAD 只表示代码已检出；部署命令或健康检查可能在检出后失败。
+    // Git ref 保存在仓库元数据中，监听器重启后也能识别上次成功部署的提交。
+    const deployedRef = 'refs/bubbly/deployed';
+    let deployedHead = null;
+    try {
+      deployedHead = await run('git', ['rev-parse', '--verify', deployedRef], gitOpts);
+    } catch {
+      // 首次部署尚无成功记录。
     }
 
-    log(`同步代码: ${localHead.slice(0, 7)} → ${remoteHead.slice(0, 7)} (reset --hard)`);
-    await run('git', ['reset', '--hard', remoteHead], gitOpts);
+    if (localHead === remoteHead && deployedHead === remoteHead) {
+      log(`已部署最新版本 (${remoteHead.slice(0, 7)})，跳过重建`);
+      return { updated: false, commit: remoteHead, healthy: true };
+    }
+
+    if (localHead !== remoteHead) {
+      log(`同步代码: ${localHead.slice(0, 7)} → ${remoteHead.slice(0, 7)} (reset --hard)`);
+      await run('git', ['reset', '--hard', remoteHead], gitOpts);
+    } else {
+      log(`代码已检出但未确认部署 (${remoteHead.slice(0, 7)})，重新执行部署`);
+    }
 
     if (config.deployCmd) {
       log(`执行自定义部署命令: ${config.deployCmd}`);
@@ -274,6 +287,7 @@ function createDeployer(config, deps = {}) {
     log(`等待服务就绪: ${config.healthUrl}`);
     const healthy = await poll(config.healthUrl, check);
     if (healthy) {
+      await run('git', ['update-ref', deployedRef, remoteHead], gitOpts);
       log('健康检查通过，新版本已就绪');
     } else {
       log(`警告: ${config.healthUrl} 在 60 秒内未通过健康检查，请人工确认服务状态`);
@@ -309,7 +323,7 @@ function createServer(config, deps = {}) {
     const startedAt = new Date().toISOString();
     try {
       const result = await deploy();
-      state.lastDeploy = { at: startedAt, ok: true, ...result };
+      state.lastDeploy = { at: startedAt, ok: result.healthy !== false, ...result };
       log(`部署完成: ${JSON.stringify(result)}`);
     } catch (err) {
       state.lastDeploy = { at: startedAt, ok: false, error: err.message };
