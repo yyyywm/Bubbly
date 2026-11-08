@@ -194,10 +194,11 @@ push 到 `main` 后，监听器自动执行（`journalctl -u bubbly-webhook -f` 
 ```text
 1. 校验 X-Hub-Signature-256 签名（HMAC-SHA256，防伪造请求）
 2. 仅响应 main 分支 push（其他分支/标签/PR 事件一律忽略）
-3. git fetch origin main && git reset --hard origin/main
+3. git fetch origin main；代码提交变化时 git reset --hard origin/main
    ⚠ 服务器仓库本地的任何改动都会被丢弃，服务器上不要手改代码
 4. docker compose up -d --build（重建镜像并重启容器）
 5. 轮询 http://127.0.0.1:8080/health 直到新版本就绪
+6. 健康检查通过后记录已部署提交（Git ref `refs/bubbly/deployed`）
 ```
 
 要点：
@@ -206,7 +207,7 @@ push 到 `main` 后，监听器自动执行（`journalctl -u bubbly-webhook -f` 
   结果以监听器日志为准（GitHub 页面上的 Recent Deliveries 只显示受理成功）；
 - **合并连续 push**：部署进行中再次收到 push 会排队，本轮结束后自动补跑一次，
   不会并发执行两个部署；
-- **幂等**：远端无新提交时仅做 fetch 比对，跳过重建。
+- **幂等与重试**：远端提交已有成功部署记录时跳过重建；部署命令失败或健康检查未通过时不更新记录，后续推送会重试。监听器重启后记录仍在。
 
 ### 7. 自定义部署命令（无 Docker 场景）
 
