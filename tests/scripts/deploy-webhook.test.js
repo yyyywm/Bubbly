@@ -180,7 +180,7 @@ describe('createDeployer', () => {
 
   test('代码有更新：fetch → 比对 → reset → docker compose 重建 → 健康检查', async () => {
     // outputs[i] 对应第 i 次调用的 stdout：fetch / rev-parse HEAD / rev-parse origin/main
-    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111']);
+    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111', 'aaaa000']);
     const deploy = createDeployer(config, {
       run,
       checkHealth: async () => true,
@@ -192,27 +192,41 @@ describe('createDeployer', () => {
       ['git', 'fetch', 'origin', 'main', '--prune'],
       ['git', 'rev-parse', 'HEAD'],
       ['git', 'rev-parse', 'origin/main'],
+      ['git', 'rev-parse', '--verify', 'refs/bubbly/deployed'],
       ['git', 'reset', '--hard', 'bbbb111'],
-      ['docker', 'compose', 'up', '-d', '--build']
+      ['docker', 'compose', 'up', '-d', '--build'],
+      ['git', 'update-ref', 'refs/bubbly/deployed', 'bbbb111']
     ]);
     assert.deepEqual(result, { updated: true, commit: 'bbbb111', healthy: true });
   });
 
-  test('远端无新提交：仅 fetch 比对，不重置也不重建', async () => {
-    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'aaaa000']);
+  test('远端提交已成功部署：仅 fetch 比对，不重置也不重建', async () => {
+    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'aaaa000', 'aaaa000']);
     const deploy = createDeployer(config, { run });
 
     const result = await deploy();
     assert.deepEqual(calls, [
       ['git', 'fetch', 'origin', 'main', '--prune'],
       ['git', 'rev-parse', 'HEAD'],
-      ['git', 'rev-parse', 'origin/main']
+      ['git', 'rev-parse', 'origin/main'],
+      ['git', 'rev-parse', '--verify', 'refs/bubbly/deployed']
     ]);
-    assert.deepEqual(result, { updated: false, commit: 'aaaa000' });
+    assert.deepEqual(result, { updated: false, commit: 'aaaa000', healthy: true });
+  });
+
+  test('代码已检出但部署未成功时重试，并在健康后记录提交', async () => {
+    const { run, calls } = fakeRunner(['fetch', 'bbbb111', 'bbbb111', 'aaaa000']);
+    const deploy = createDeployer(config, { run, pollHealth: async () => true });
+    assert.deepEqual(await deploy(), { updated: true, commit: 'bbbb111', healthy: true });
+    assert.ok(!calls.some(c => c[0] === 'git' && c[1] === 'reset'));
+    assert.deepEqual(calls.slice(-2), [
+      ['docker', 'compose', 'up', '-d', '--build'],
+      ['git', 'update-ref', 'refs/bubbly/deployed', 'bbbb111']
+    ]);
   });
 
   test('配置 WEBHOOK_DEPLOY_CMD 时改走 shell 命令而非 docker compose', async () => {
-    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111']);
+    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111', 'aaaa000']);
     const shells = [];
     let shellOpts = null;
     const deploy = createDeployer(
@@ -241,7 +255,7 @@ describe('createDeployer', () => {
   });
 
   test('健康检查未通过：部署结果标记 healthy: false', async () => {
-    const { run } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111']);
+    const { run, calls } = fakeRunner(['unused-fetch', 'aaaa000', 'bbbb111', 'aaaa000']);
     const deploy = createDeployer(config, {
       run,
       pollHealth: async () => false
@@ -250,6 +264,7 @@ describe('createDeployer', () => {
     const result = await deploy();
     assert.equal(result.updated, true);
     assert.equal(result.healthy, false);
+    assert.ok(!calls.some(c => c[1] === 'update-ref'));
   });
 
   test('命令执行失败时向上抛出错误', async () => {
@@ -275,6 +290,15 @@ describe('createServer · HTTP 端点', () => {
     assert.equal(data.deploying, false);
     assert.equal(data.pending, false);
     assert.equal(data.lastDeploy, null);
+  });
+
+  test('部署健康检查失败时状态标记失败', async () => {
+    const { state, runDeploy } = createServer(loadConfig({ WEBHOOK_SECRET: SECRET }), {
+      deploy: async () => ({ updated: true, commit: 'bbbb111', healthy: false })
+    });
+    await runDeploy();
+    assert.equal(state.lastDeploy.ok, false);
+    assert.equal(state.lastDeploy.healthy, false);
   });
 
   test('非 webhook 路径返回 404', async () => {
