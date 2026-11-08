@@ -96,6 +96,11 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg)) {
+      ws.send(JSON.stringify({ type: 'error', msg: '无效的消息格式' }));
+      return;
+    }
+
     // 根据消息类型分发处理
     switch (msg.type) {
 

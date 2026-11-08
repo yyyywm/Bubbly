@@ -32,7 +32,7 @@ function handleJoin(ws, msg, onJoined) {
   const id = msg.id;
 
   // 参数校验
-  if (!id) {
+  if (typeof id !== 'string' || !id.trim()) {
     ws.send(JSON.stringify({ type: 'error', msg: '缺少用户ID' }));
     return;
   }
@@ -40,6 +40,10 @@ function handleJoin(ws, msg, onJoined) {
   // 检查是否已在连接中（防止重复加入）
   for (const client of clients) {
     if (client.id === id) {
+      if (client.ws !== ws) {
+        ws.send(JSON.stringify({ type: 'error', msg: '用户ID已被占用' }));
+        return;
+      }
       ws.send(JSON.stringify({ type: 'welcome', id }));
       onJoined(id);
       return;
@@ -90,7 +94,7 @@ function handleMessage(ws, msg, userId) {
   }
 
   const text = msg.text;
-  if (!text || !text.trim()) {
+  if (typeof text !== 'string' || !text.trim()) {
     ws.send(JSON.stringify({ type: 'error', msg: '消息内容不能为空' }));
     return;
   }
@@ -172,10 +176,10 @@ function handleLeave(ws, msg, userId, onLeft) {
 /**
  * 从连接列表中移除用户
  * @param {string} userId 要移除的用户ID
- * @param {_ws} _ws 保留参数：与原 server.js 签名一致，当前未使用
+ * @param {object} ws 仅移除该连接对应的用户，防止旧连接清理新连接
  */
-function leaveRoom(userId, _ws) {
-  const index = clients.findIndex(c => c.id === userId);
+function leaveRoom(userId, ws) {
+  const index = clients.findIndex(c => c.id === userId && c.ws === ws);
   if (index !== -1) {
     clients.splice(index, 1);
   }

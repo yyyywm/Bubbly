@@ -196,4 +196,14 @@ describe('服务器端到端集成', () => {
     assert.equal((await err).msg, '无效的消息格式');
     a.ws.close();
   });
+
+  test('合法 JSON 的空值和数组返回错误且连接保持可用', async () => {
+    const a = await connect('alice');
+    for (const value of ['null', '[]']) {
+      const err = a.waitFor(m => m.type === 'error');
+      a.ws.send(value);
+      assert.equal((await err).msg, '无效的消息格式');
+    }
+    assert.equal(a.ws.readyState, WebSocket.OPEN);
+  });
 });

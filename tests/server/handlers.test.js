@@ -59,14 +59,35 @@ describe('handleJoin', () => {
     assert.equal(clients.length, 1);
   });
 
-  test('同一ID重复加入幂等：只回复 welcome 不重复入房', () => {
+  test('同一连接重复加入幂等：只回复 welcome 不重复入房', () => {
+    const a1 = mockWs();
+    handleJoin(a1.ws, { id: 'alice' }, () => {});
+    handleJoin(a1.ws, { id: 'alice' }, () => {});
+    assert.deepEqual(a1.sent, [
+      { type: 'welcome', id: 'alice' },
+      { type: 'welcome', id: 'alice' }
+    ]);
+    assert.equal(clients.length, 1, '不应重复加入');
+    assert.equal(clients[0].ws, a1.ws, '保留原连接');
+  });
+
+  test('另一连接不能冒用已占用的用户ID', () => {
     const a1 = mockWs();
     const a2 = mockWs();
     handleJoin(a1.ws, { id: 'alice' }, () => {});
-    handleJoin(a2.ws, { id: 'alice' }, () => {});
-    assert.deepEqual(a2.sent, [{ type: 'welcome', id: 'alice' }]);
-    assert.equal(clients.length, 1, '不应重复加入');
-    assert.equal(clients[0].ws, a1.ws, '保留原连接');
+    handleJoin(a2.ws, { id: 'alice' }, () => assert.fail('不应加入成功'));
+    assert.deepEqual(a2.sent, [{ type: 'error', msg: '用户ID已被占用' }]);
+    assert.equal(clients.length, 1);
+    assert.equal(clients[0].ws, a1.ws);
+  });
+
+  test('用户ID必须是非空字符串', () => {
+    const a = mockWs();
+    for (const id of [null, 1, {}, '  ']) {
+      handleJoin(a.ws, { id }, () => assert.fail('不应加入成功'));
+    }
+    assert.equal(a.sent.length, 4);
+    assert.equal(clients.length, 0);
   });
 
   test('同一连接换ID加入被拒绝', () => {
@@ -122,10 +143,10 @@ describe('handleMessage', () => {
     const b = mockWs();
     handleJoin(a.ws, { id: 'alice' }, () => {});
     handleJoin(b.ws, { id: 'bob' }, () => {});
-    for (const text of [undefined, '', '   ']) {
+    for (const text of [undefined, '', '   ', 123, {}]) {
       handleMessage(a.ws, { text }, 'alice');
     }
-    assert.equal(a.sent.filter(m => m.type === 'error').length, 3);
+    assert.equal(a.sent.filter(m => m.type === 'error').length, 5);
     assert.ok(a.sent.every(m => !m.type || m.type !== 'message'));
   });
 
