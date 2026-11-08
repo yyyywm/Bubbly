@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 信令服务器拒绝重复用户 ID 的不同连接及非法消息类型，避免身份冒用或异常报文导致连接处理失败
+- Webhook 以已通过健康检查的提交记录判断是否跳过部署；部署失败后可在后续推送时重试
+
 ### Added
 
 - 自动部署：新增 GitHub Webhook 监听器 `scripts/deploy-webhook.js`（零依赖，`npm run webhook`），`main` 分支收到 push 后自动同步远端代码（fetch + reset --hard）并执行 `docker compose up -d --build` 重启服务，含 HMAC-SHA256 签名校验、分支/事件过滤、部署排队合并与部署后健康检查；附 systemd 单元 `deploy/bubbly-webhook.service`、环境变量模板 `deploy/webhook.env.example` 及 DEPLOY.md 完整部署指南
