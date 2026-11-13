@@ -94,6 +94,21 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+#setup-panel .form-area::-webkit-scrollbar {
+  display: none;
+}
+
+#setup-panel .form-area:focus {
+  outline: none;
+}
+
+#setup-panel .form-area:focus-visible {
+  outline: 2px solid rgba(255, 107, 157, 0.55);
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 
 #setup-panel .input-group {
