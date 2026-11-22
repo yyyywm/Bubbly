@@ -46,6 +46,11 @@ function handleJoin(ws, msg, onJoined) {
       }
       ws.send(JSON.stringify({ type: 'welcome', id }));
       onJoined(id);
+      clients.forEach(peer => {
+        if (peer.ws !== ws) {
+          ws.send(JSON.stringify({ type: 'peer-joined', id: peer.id }));
+        }
+      });
       return;
     }
     // 检查是否是同一个WebSocket连接换了ID
@@ -69,19 +74,19 @@ function handleJoin(ws, msg, onJoined) {
 
   console.log(`[加入] 用户 ${id} 已连接（当前人数: ${clients.length}）`);
 
-  // 通知对方有新成员加入
-  clients.forEach(client => {
-    if (client.id !== id) {
-      client.ws.send(JSON.stringify({
-        type: 'peer-joined',
-        id: id
-      }));
-    }
+  const peers = clients.filter(client => client.ws !== ws);
+  // 通知已有成员新用户加入。
+  peers.forEach(client => {
+    client.ws.send(JSON.stringify({ type: 'peer-joined', id }));
   });
 
   // 回复当前用户加入成功
   ws.send(JSON.stringify({ type: 'welcome', id }));
   onJoined(id);
+  // 新用户也需要知道房间里已有对方；必须在 welcome 之后发送。
+  peers.forEach(client => {
+    ws.send(JSON.stringify({ type: 'peer-joined', id: client.id }));
+  });
 }
 
 /**
