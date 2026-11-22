@@ -36,11 +36,14 @@ function connect(id) {
     const ws = new WebSocket(`ws://127.0.0.1:${PORT}`);
     sockets.push(ws);
     const waiters = [];
+    const inbox = [];
     ws.on('message', (raw) => {
       const msg = JSON.parse(raw.toString());
       const idx = waiters.findIndex(w => w.match(msg));
       if (idx !== -1) {
         waiters.splice(idx, 1)[0].resolve(msg);
+      } else {
+        inbox.push(msg);
       }
     });
     ws.on('error', reject);
@@ -51,6 +54,8 @@ function connect(id) {
 
     /** 等待满足条件的下一条消息（超时 5s） */
     function waitFor(match) {
+      const index = inbox.findIndex(match);
+      if (index !== -1) return Promise.resolve(inbox.splice(index, 1)[0]);
       return new Promise((res, rej) => {
         const timer = setTimeout(() => rej(new Error(`等待消息超时: ${id}`)), 5000);
         waiters.push({
@@ -126,12 +131,14 @@ describe('服务器端到端集成', () => {
     assert.equal(typeof body.clients, 'number');
   });
 
-  test('双方配对：后加入方触发对方 peer-joined', async () => {
+  test('双方配对：两端都收到对方已加入的通知', async () => {
     const a = await connect('alice');
     const peerJoined = a.waitFor(m => m.type === 'peer-joined');
     const b = await connect('bob');
 
     assert.equal((await peerJoined).id, 'bob');
+    assert.equal((await b.waitFor(m => m.type === 'welcome')).id, 'bob');
+    assert.equal((await b.waitFor(m => m.type === 'peer-joined')).id, 'alice');
     await waitClients(2);
     b.ws.close();
   });

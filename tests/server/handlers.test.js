@@ -71,6 +71,20 @@ describe('handleJoin', () => {
     assert.equal(clients[0].ws, a1.ws, '保留原连接');
   });
 
+  test('已配对连接重复加入时重新告知现有对方', () => {
+    const a = mockWs();
+    const b = mockWs();
+    handleJoin(a.ws, { id: 'alice' }, () => {});
+    handleJoin(b.ws, { id: 'bob' }, () => {});
+    b.sent.length = 0;
+    handleJoin(b.ws, { id: 'bob' }, () => {});
+    assert.deepEqual(b.sent, [
+      { type: 'welcome', id: 'bob' },
+      { type: 'peer-joined', id: 'alice' }
+    ]);
+    assert.equal(clients.length, 2);
+  });
+
   test('另一连接不能冒用已占用的用户ID', () => {
     const a1 = mockWs();
     const a2 = mockWs();
@@ -128,6 +142,10 @@ describe('handleJoin', () => {
       { type: 'welcome', id: 'alice' },
       { type: 'peer-joined', id: 'bob' }
     ]);
+    assert.deepEqual(b.sent, [
+      { type: 'welcome', id: 'bob' },
+      { type: 'peer-joined', id: 'alice' }
+    ]);
   });
 });
 
@@ -180,7 +198,7 @@ describe('handleMessage', () => {
     handleJoin(a.ws, { id: 'alice' }, () => {});
     handleJoin(b.ws, { id: 'bob' }, () => {});
     handleMessage(a.ws, { text: 'hi' }, 'alice');
-    assert.equal(b.sent.length, 1); // 仅 join 阶段的 peer-joined，无 message
+    assert.equal(b.sent.length, 2); // 仅 join 阶段的 welcome 和 peer-joined，无 message
     assert.deepEqual(a.sent.slice(-1), [{ type: 'error', msg: '对方不在线，消息未送达' }]);
   });
 });
