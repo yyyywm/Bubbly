@@ -32,6 +32,8 @@ function connect() {
     ws.onclose = () => {
       console.log('WebSocket 已断开');
       isConnected = false;
+      peerConnected = false;
+      peerDoNotDisturb = false;
       updateStatusUI();
       if (petArea.style.display === 'block') {
         showReconnectHint();
@@ -59,13 +61,14 @@ function handleMessage(data) {
     case 'welcome':
       console.log('连接成功');
       isConnected = true;
+      peerConnected = false;
+      peerDoNotDisturb = false;
       window.electronAPI.enterPetMode();
       setupPanel.style.display = 'none';
       petArea.style.display = 'block';
       applyScale(petScale);
       updatePetDisplay();
       updateStatusUI();
-      statusBarPeer.className = '';
       // 刚连接，主动广播当前用户的勿扰状态，让对方立刻看到状态灯变化
       broadcastDndStatus(doNotDisturb);
       break;
@@ -79,20 +82,23 @@ function handleMessage(data) {
       break;
 
     case 'peer-disconnected':
-      statusBarSelf.className = 'offline';
-      statusBarPeer.className = 'offline';
+      peerConnected = false;
+      peerDoNotDisturb = false;
+      updateStatusUI();
       break;
 
     case 'peer-joined':
-      // 对方回来了：自己状态条反映【自己】的状态（联网 = 绿灯，自己 DND = 黄灯）
-      statusBarSelf.className = 'online' + (doNotDisturb ? ' dnd' : '');
-      statusBarPeer.className = '';
+      peerConnected = true;
+      peerDoNotDisturb = false;
+      updateStatusUI();
       break;
 
     case 'dnd-status':
-      // 只处理对方的 DND 状态，通过 statusBarPeer 显示；不触碰自己状态条
+      // 对方主动上报勿扰状态也能确认其在线（兼容旧版服务器）。
       if (data.from !== userId) {
-        statusBarPeer.className = data.dnd === true ? 'dnd' : '';
+        peerConnected = true;
+        peerDoNotDisturb = data.dnd === true;
+        updateStatusUI();
       }
       break;
 

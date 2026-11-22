@@ -29,6 +29,8 @@ const messageQueue = [];
 
 let ws = null;
 let isConnected = false;
+let peerConnected = false;
+let peerDoNotDisturb = false;
 let reconnectTimer = null;
 let reconnectVisible = false;
 let isShowing = false;

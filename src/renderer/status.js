@@ -8,13 +8,19 @@ function setStatus(text, color) {
 
 function updateStatusUI() {
   if (isConnected) {
-    // 自己状态条反映【自己】的状态：已连接 = 绿灯；自己开启勿扰 = 黄灯
-    statusBarSelf.className = 'online' + (doNotDisturb ? ' dnd' : '');
+    // 只有双方都在线才显示在线或勿扰状态；独自连上服务器时两段均为红色。
+    statusBarSelf.className = peerConnected
+      ? 'online' + (doNotDisturb ? ' dnd' : '')
+      : 'offline';
+    statusBarPeer.className = peerConnected
+      ? (peerDoNotDisturb ? 'dnd' : 'online')
+      : 'offline';
     reconnectHint.style.display = 'none';
   } else {
     reconnectVisible = false;
     reconnectHint.style.display = 'none';
     statusBarSelf.className = 'offline';
+    statusBarPeer.className = 'offline';
   }
 }
 
