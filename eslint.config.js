@@ -43,6 +43,8 @@ const RENDERER_SHARED_GLOBALS = {
   messageQueue: 'writable',
   ws: 'writable',
   isConnected: 'writable',
+  peerConnected: 'writable',
+  peerDoNotDisturb: 'writable',
   reconnectTimer: 'writable',
   reconnectVisible: 'writable',
   isShowing: 'writable',
