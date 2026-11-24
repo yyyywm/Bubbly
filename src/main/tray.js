@@ -17,8 +17,6 @@ function createTrayIcon() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '💕 Bubbly', enabled: false },
     { type: 'separator' },
-    { label: '🔄 重启应用', click: () => { app.relaunch(); app.exit(0); } },
-    { type: 'separator' },
     { label: '❌ 退出', click: () => app.quit() }
   ]));
   tray.setToolTip('💕 Bubbly');
