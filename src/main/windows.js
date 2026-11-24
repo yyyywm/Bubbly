@@ -73,7 +73,7 @@ function createWindow() {
 // 独立悬浮输入窗口
 //
 // 架构：
-//   pet dblclick / 右键菜单「💌 发送消息」→ renderer 发 show-input-window
+//   双击桌宠 → renderer 发 show-input-window
 //   → main 创建独立 BrowserWindow（透明、无边框、置顶）
 //     - 加载 src/renderer/input-window/（index.html + renderer.js）+ src/preload/input-window.js
 //     - 输入窗口位于主窗口下方并居中，自动校正屏幕边界

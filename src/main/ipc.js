@@ -89,11 +89,6 @@ function registerIpcHandlers() {
     console.log('[MAIN] pet context menu shown, items=' + items.length);
   });
 
-  ipcMain.on('pet-menu-relaunch', () => {
-    app.relaunch();
-    app.exit(0);
-  });
-
   ipcMain.on('pet-menu-quit', () => app.quit());
 
   // 桌宠 JS 拖拽：由主进程负责绝对定位，彻底规避反馈循环。

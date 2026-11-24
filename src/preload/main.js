@@ -9,11 +9,9 @@
  *   - dragMove(dx, dy)            → 桌宠 JS 拖拽
  *   - sendContextMenuItems(items) → 上报当前桌宠右键菜单模板
  *   - setWindowSize(w, h)         → 通知主进程更新窗口尺寸（渲染器为唯一尺寸源）
- *   - petMenuRelaunch()           → 重启应用
  *   - petMenuQuit()               → 退出应用
  *
  * 菜单项 IPC 回调（由主进程菜单 dispatch 回来）:
- *   - pet-menu-send-message     → 弹出发送消息输入框
  *   - pet-menu-leave-pet-mode   → 返回设置面板
  *   - pet-menu-toggle-dnd       → 切换勿扰模式
  *   - pet-menu-replay-queue     → 立即重放队列消息
@@ -34,15 +32,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dragMove: (dx, dy) => ipcRenderer.send('drag-move', dx, dy),
   sendContextMenuItems: (items) => ipcRenderer.send('context-menu-items-reply', items),
   setWindowSize: (w, h, petBottom) => ipcRenderer.send('set-window-size', w, h, petBottom),
-  petMenuRelaunch: () => ipcRenderer.send('pet-menu-relaunch'),
   petMenuQuit: () => ipcRenderer.send('pet-menu-quit'),
 
-  onPetMenuSendMessage: (cb) => ipcRenderer.on('pet-menu-send-message', cb),
   onPetMenuLeavePetMode: (cb) => ipcRenderer.on('pet-menu-leave-pet-mode', cb),
   onPetMenuToggleDnd: (cb) => ipcRenderer.on('pet-menu-toggle-dnd', cb),
   onPetMenuReplayQueue: (cb) => ipcRenderer.on('pet-menu-replay-queue', cb),
   onPetMenuClearQueue: (cb) => ipcRenderer.on('pet-menu-clear-queue', cb),
-  onPetMenuRelaunch: (cb) => ipcRenderer.on('pet-menu-relaunch', cb),
   onPetMenuQuit: (cb) => ipcRenderer.on('pet-menu-quit', cb),
   onContextMenuItems: (cb) => ipcRenderer.on('context-menu-items', cb),
   onInputWindowMessage: (cb) => ipcRenderer.on('input-window-send-message', cb)
