@@ -31,6 +31,7 @@ function registerIpcHandlers() {
   ipcMain.on('enter-pet-mode', () => {
     if (!S.mainWindow) return;
     S.petMode = true;
+    if (process.platform === 'win32') S.mainWindow.setSkipTaskbar(true);
     updateMousePenetration();
     // 窗口尺寸由渲染器在 applyScale 里通过 set-window-size 通知
     console.log('[MAIN] enter-pet-mode');
@@ -39,6 +40,7 @@ function registerIpcHandlers() {
   ipcMain.on('leave-pet-mode', () => {
     if (!S.mainWindow) return;
     S.petMode = false;
+    if (process.platform === 'win32') S.mainWindow.setSkipTaskbar(false);
     updateMousePenetration();
     console.log('[MAIN] leave-pet-mode');
   });
