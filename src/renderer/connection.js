@@ -74,6 +74,10 @@ function handleMessage(data) {
       break;
 
     case 'message':
+      if (!peerConnected && data.from !== userId) {
+        peerConnected = true;
+        updateStatusUI();
+      }
       if (doNotDisturb) {
         enqueueDndQueue(data.text);
       } else {
@@ -91,6 +95,8 @@ function handleMessage(data) {
       peerConnected = true;
       peerDoNotDisturb = false;
       updateStatusUI();
+      // 旧服务器只通知先加入的一端，向刚加入的一端同步自己的在线及勿扰状态。
+      broadcastDndStatus(doNotDisturb);
       break;
 
     case 'dnd-status':
